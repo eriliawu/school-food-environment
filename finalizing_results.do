@@ -162,8 +162,30 @@ label define outlet 1 "Fast food" 2 "Corner store" 3 "Wait service" 4 "Supermark
 label values nearestOutlet_sch outlet
 
 * by gender
+* male students 
 quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
 		$demo2 $house if $sample & $dist & female==0, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) level(95)
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Sample: male students") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(`=0.12' "0.12" `=0.13' "0.13" `=0.14' "0.14" `=0.15' "0.15" ///
+	`=0.16' "0.16" `=0.17' "0.17" `=0.18' "0.18" `=0.19' "0.19" `=0.2' "0.2", ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_male.gph, replace
+
+* female students 
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
+		$demo2 $house if $sample & $dist & female==1, robust absorb(boroct2010)
 quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) level(10)
 marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
@@ -179,8 +201,7 @@ marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
 	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
 	level(10)
-graph save figures\likelihood_male.gph, replace
-
+graph save figures\likelihood_female.gph, replace
 
 * stratify by race
 * asian
