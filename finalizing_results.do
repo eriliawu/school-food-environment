@@ -156,22 +156,35 @@ forvalues i=1/5 {
 .
 esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by boro")
 
-* export beta and confidence intervals
+*** export margins and CI estimates to make figures
+*** export .csv files
 eststo clear
-quietly: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
-	$house if $sample & $dist, robust absorb(boroct2010)
-quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall1000_sch=(0(2.64)26.4)) post
-esttab using table3_likelihood_ci.csv, replace b(6) ci(6) nogaps
-
-* by boro
-eststo clear
-forvalues i=1/5 {
-	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
-	quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
-	
+forvalues i=0/1 {
+	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
+		$demo2 $house if $sample & $dist & female==`i', robust absorb(boroct2010)
+	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
 .
+esttab using data\supp_table_gender.csv, replace b(3) ci(3) nogaps title("stratify by gender")
+
+eststo clear
+forvalues i=2/5 {
+	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
+		female poorever native sped engathome age i.graden i.year $house ///
+		if $sample & $dist & ethnic==`i', robust absorb(boroct2010)
+	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
+}
+.
+esttab using data\supp_table_race.csv, replace b(3) ci(3) nogaps title("stratify by race")
+
+eststo clear
+forvalues i=1/5 {
+	quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
+	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
+}
+.
+esttab using data\supp_table_boro.csv, replace b(3) ci(3) nogaps title("stratify by boro")
 
 /*******************************************************************************
 * by gender
