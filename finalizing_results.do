@@ -5,7 +5,7 @@ set showbaselevels on
 cd "S:\Personal\hw1220\FF free zone"
 use "food_environment_2009-2013_FF_free_zone.dta", clear
 
-cd "H:\Personal\Built Environment\school-food-environment"
+cd "C:\Users\wue04\Box Sync\school-food-env\school-food-environment"
 ********************************************************************************
 * define sample
 global sample halfmile_home==0 & !missing(grade) & !missing(nat) & halfmile_sch==0 & level==3
@@ -38,6 +38,11 @@ tab nearestGroup
 
 destring boro_sch, replace
 
+* make figures for supp analyses
+label define outlet 1 "Fast food" 2 "Corner store" 3 "Wait service" 4 "Supermarket" ///
+	5 "More than 1", replace
+label values nearestOutlet_sch outlet
+
 ********************************************************************************
 * summary stats
 * table 1
@@ -65,17 +70,17 @@ tab nearestOutlet if $sample & $dist & year==2013 & nearestAnyall<1320
 
 * regression, table 3
 eststo clear
-quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-	$house if $sample & $dist, robust absorb(boroct2010)
+*quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+*	$house if $sample & $dist, robust absorb(boroct2010)
 quietly eststo: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
 	$house if $sample & $dist, robust absorb(boroct2010)
-quietly eststo: areg obese b2.nearestOutlet_sch c.nearestAnyall_sch#b2.nearestOutlet_sch ///
-	$demo2 $house if $sample & $dist, robust absorb(boroct2010)
-margins i.nearestOutlet_sch, post //table 3, col 3 predicted likelihood
-quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-	$house if $sample & $dist, robust absorb(boroct2010)
-esttab using main_tables.rtf, replace nogaps title("table3 main model") b(3) se(3)
-*esttab using change_ref_group.rtf, replace nogaps title("change ref group") cells(b(fmt(6)) & se(par))
+*quietly eststo: areg obese b2.nearestOutlet_sch c.nearestAnyall_sch#b2.nearestOutlet_sch ///
+*	$demo2 $house if $sample & $dist, robust absorb(boroct2010)
+quietly eststo: margins i.nearestOutlet_sch, post //table 3, col 3 predicted likelihood
+*quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+*	$house if $sample & $dist, robust absorb(boroct2010)
+esttab using main_tables.rtf, replace nogaps title("table3 main model") b(3) se(3) 
+esttab using main_tables.csv, replace nogaps title("table3 main model") ci(3)
 
 *test joint significance in model 2
 areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
@@ -112,17 +117,12 @@ marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60))
 graph save likelihood_10block_without_more_than_1.gph, replace
 
-eststo clear
-quietly: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
-	$house if $sample & $dist, robust absorb(boroct2010)
-quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall1000_sch=(0(2.64)26.4)) post
-esttab using figure1_obesity_likelihood_data.csv, replace b(6) nogaps
-
 * table 4
 eststo clear
 quietly eststo: areg obese b2.nearestGroup $demo2 $house if $sample & $dist, robust absorb(boroct2010)
 eststo: margins i.nearestGroup, post
 esttab using main_tables.rtf, append nogaps title("table4 london") b(3) se(3)
+esttab using main_tables.csv, append nogaps title("table4 london") ci(3)
 
 *** suuplemental tables
 * stratification by gender
@@ -156,11 +156,24 @@ forvalues i=1/5 {
 .
 esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by boro")
 
-* make figures for supp analyses
-label define outlet 1 "Fast food" 2 "Corner store" 3 "Wait service" 4 "Supermarket" ///
-	5 "More than 1", replace
-label values nearestOutlet_sch outlet
+* export beta and confidence intervals
+eststo clear
+quietly: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist, robust absorb(boroct2010)
+quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall1000_sch=(0(2.64)26.4)) post
+esttab using table3_likelihood_ci.csv, replace b(6) ci(6) nogaps
 
+* by boro
+eststo clear
+forvalues i=1/5 {
+	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
+	quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+	
+}
+.
+
+/*******************************************************************************
 * by gender
 * male students 
 quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
@@ -189,11 +202,12 @@ quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
 quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) level(10)
 marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
-	title("Sample: male students") ///
+	title("Sample: female students") ///
 	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
 	ytitle("Likelihood of obesity", size(vsmall)) ///
 	xlabel(0(264)2640, labsize(vsmall)) ///
-	ylabel(, ///
+	ylabel(`=0.09' "0.09" `=0.1' "0.1" `=0.11' "0.11" `=0.12' "0.12" ///
+	`0.13' "0.13" `=0.14' "0.14" `=0.15' "0.15" `=0.16' "0.16" `=0.17' "0.17", ///
 	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
 	graphregion(color(white)) bgcolor(white) ///
 	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
@@ -291,24 +305,106 @@ marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	level(10)
 graph save figures\likelihood_white.gph, replace
 
-* by boro
-eststo clear
-forvalues i=1/5 {
-	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
-	quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
-	marginsplot, legend(label(1 "Fast food") label(2 "Corner store") label(3 "Wait service") label(4 "Supermarket") ///
-		position(7) size(vsmall)) ///
-		xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
-		ytitle("Likelihood of obesity", size(vsmall)) ///
-		xlabel(0(264)2640, labsize(vsmall)) ///
-		ylabel(`=0.06' "0.06" `=0.08' "0.08" `=0.1' "0.1" `=0.12' "0.12" `=0.14' "0.14" ///
-		`=0.16' "0.16" `=0.18' 0.18 `=0.2' "0.2", labsize(vsmall)) ///
-		graphregion(color(white)) bgcolor(white)
-	graph save figures\likelihood_boro`i'.gph, replace
-}
-.
+* by boro figures, manhattan
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist & boro_sch==1, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Manhattan") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(, ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_manhattan.gph, replace
 
+* by boro figures, bronx
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist & boro_sch==2, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Bronx") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(, ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_bronx.gph, replace
+
+* by boro figures, brooklyn
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist & boro_sch==3, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Brooklyn") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(, ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_brooklyn.gph, replace
+
+* by boro figures, queens
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist & boro_sch==4, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Queens") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(, ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ci4opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_queens.gph, replace
+
+* by boro figures, SI
+quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist & boro_sch==5, robust absorb(boroct2010)
+quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("Staten Island") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(, ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	ci1opts(lcolor(%0)) ci2opts(lcolor(%0)) ci3opts(lcolor(%0)) ///
+	level(10)
+graph save figures\likelihood_si.gph, replace
+*******************************************************************************/
 
 
 /*
