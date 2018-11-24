@@ -45,12 +45,26 @@ gender <- gender[, -c(4:5)]
 gender$outlet <- NULL
 gender$dist <- NULL
 
+temp <- strsplit(gender$group, "#")
+temp <- data.frame(matrix(unlist(temp), nrow=44, byrow=TRUE))
+gender$outlet <- substring(temp$X2, 1, 1)
+gender$dist <- substring(temp$X1, 2, 3)
+gender$dist <- gsub(patter="\\.", replacement = "", gender$dist)
+rm(temp)
+gender$group <- NULL
 
+apply(gender, 2, class)
+gender[, c(1:6, 8)] <- apply(gender[, c(1:6, 8)], 2, as.numeric)
+gender$dist <- (gender$dist-1)*264
+gender$outlet[gender$outlet==1] <- "FF"
+gender$outlet[gender$outlet==2] <- "BOD"
+gender$outlet[gender$outlet==3] <- "WS"
+gender$outlet[gender$outlet==4] <- "SUP"
 
-
-
-
-
+# prepare for export
+gender <- gender[, c(7:8, 1, 3:4, 2, 5:6)]
+names(gender)
+write.csv(gender, )
 
 
 
