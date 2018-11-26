@@ -64,7 +64,7 @@ gender$outlet[gender$outlet==4] <- "SUP"
 # prepare for export
 gender <- gender[, c(7:8, 1, 3:4, 2, 5:6)]
 names(gender)
-write.csv(gender, )
+write.csv(gender, "figure_estimates_gender.csv")
 
 
 
