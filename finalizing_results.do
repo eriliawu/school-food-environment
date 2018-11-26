@@ -186,6 +186,15 @@ forvalues i=1/5 {
 .
 esttab using data\supp_table_boro.csv, replace b(3) ci(3) nogaps title("stratify by boro")
 
+********************************************************************************
+*** check variations within cells
+* for students in the same distance group,
+* how much variances are there between census tracts
+* in terms of race/ethnicity, being poor
+tab nearestGroup_sch if $sample & $dist
+
+corr ethnic poor boro boroct2010_2 if $sample & $dist & nearestGroup==7
+
 /*******************************************************************************
 * by gender
 * male students 
