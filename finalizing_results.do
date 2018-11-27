@@ -188,12 +188,19 @@ esttab using data\supp_table_boro.csv, replace b(3) ci(3) nogaps title("stratify
 
 ********************************************************************************
 *** check variations within cells
-* for students in the same distance group,
-* how much variances are there between census tracts
-* in terms of race/ethnicity, being poor
-tab nearestGroup_sch if $sample & $dist
+* select top 10 census tracts that are heavily black/hispanic/asian
+* see how much variance is there for nearest outlet distance and type of outlet to school
+* use 2013 as example
+sort boroct2010 ethnic
+gen marker=1 if $sample & $dist & year==2013
+bys boroct2010: egen pop_total = sum(marker) if $sample & $dist & year==2013
+bys boroct2010 ethnic: egen pop_subgroup = sum(marker) if $sample & $dist & year==2013
+sum pop*
+hist pop_total //looks like a reasonable distribution
+gen percent_subgroup = pop_sub/pop_total if $sample & $dist & year==2013
 
-corr ethnic poor boro boroct2010_2 if $sample & $dist & nearestGroup==7
+drop marker
+preserve
 
 /*******************************************************************************
 * by gender
