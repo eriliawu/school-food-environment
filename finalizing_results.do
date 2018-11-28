@@ -179,7 +179,7 @@ esttab using data\supp_table_race.csv, replace b(10) ci(10) nogaps title("strati
 
 eststo clear
 forvalues i=1/5 {
-	quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
+	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
 		$house if $sample & $dist & boro_sch=="`i'", robust absorb(boroct2010)
 	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
