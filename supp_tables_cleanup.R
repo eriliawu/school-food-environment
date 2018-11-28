@@ -132,37 +132,32 @@ boro <- boro[-c(1:3, 92:94), ]
 # move CIs to separate cols
 dim(boro)
 ci_row <- seq(from=2, to=88, by=2)
-col <- c(2:5)
+col <- c(2:6)
 for (i in ci_row) {
       for (j in col) {
-            boro[i-1, j+4] <- boro[i, j]
+            boro[i-1, j+5] <- boro[i, j]
       }
 }
 boro <- boro[-ci_row, ]
-colnames(boro)[1:9] <- c("group", "asain", "hisp", "black", "white", "ci_asian",
-                         "ci_hisp", "ci_black", "ci_white")
+colnames(boro)[1:11] <- c("group", "mn", "bx", "bk", "qn", "si", "ci_mn", "ci_bx",
+                         "ci_bk", "ci_qn", "ci_si")
 rm(ci_row, i, j, col)
 
 # clean up signs
-boro[, 2:9] <- apply(boro[, 2:9], 2, clean_signs)
+boro[, 2:11] <- apply(boro[, 2:11], 2, clean_signs)
 
-split_clean <- function(x, str, row) {
-      object <- strsplit(x, split=str)
-      object <- unlist(object)
-      object <- matrix(object, nrow=row, byrow=TRUE)
-      object <- data.frame(object)
-      return(object)
-}
-ci_asian <- split_clean(x=boro$ci_asian, str=",", row=dim(boro)[1])
-ci_hisp <- split_clean(x=boro$ci_hisp, str=",", row=dim(boro)[1])
-ci_black <- split_clean(x=boro$ci_black, str=",", row=dim(boro)[1])
-ci_white <- split_clean(x=boro$ci_white, str=",", row=dim(boro)[1])
-boro <- cbind(boro, ci_asian, ci_hisp, ci_black, ci_white)
-colnames(boro)[10:17] <- c("ci_asian_lower", "ci_asian_upper", "ci_hisp_lower",
-                           "ci_hisp_upper", "ci_black_lower", "ci_black_upper",
-                           "ci_white_lower", "ci_white_upper")
-boro <- boro[, -c(6:9)]
-rm(ci_asian, ci_hisp, ci_black, ci_white)
+ci_mn <- split_clean(x=boro$ci_mn, str=",", row=dim(boro)[1])
+ci_bx <- split_clean(x=boro$ci_bx, str=",", row=dim(boro)[1])
+ci_bk <- split_clean(x=boro$ci_bk, str=",", row=dim(boro)[1])
+ci_qn <- split_clean(x=boro$ci_qn, str=",", row=dim(boro)[1])
+ci_si <- split_clean(x=boro$ci_si, str=",", row=dim(boro)[1])
+
+boro <- cbind(boro, ci_mn, ci_bx, ci_bk, ci_qn, ci_si)
+colnames(boro)[12:21] <- c("ci_mn_lower", "ci_mn_upper", "ci_bx_lower",
+                           "ci_bx_upper", "ci_bk_lower", "ci_bk_upper",
+                           "ci_qn_lower", "ci_qn_upper", "ci_si_lower", "ci_si_upper")
+boro <- boro[, -c(7:11)]
+rm(ci_mn, ci_bx, ci_bk, ci_qn, ci_si)
 
 # create variables
 # indicate food outlet and distance
@@ -182,8 +177,8 @@ boro$outlet[boro$outlet==3] <- "WS"
 boro$outlet[boro$outlet==4] <- "SUP"
 
 # prepare for export
-boro <- boro[, c(13:14, 1, 5:6, 2, 7:8, 3, 9:10, 4, 11:12)]
 names(boro)
+boro <- boro[, c(16:17, 1, 6:7, 2, 8:9, 3, 10:11, 4, 12:13, 5, 14:15)]
 write.csv(boro, "figure_estimates_boro.csv", row.names = FALSE)
 
 
