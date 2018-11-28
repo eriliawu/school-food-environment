@@ -165,7 +165,7 @@ forvalues i=0/1 {
 	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
 .
-esttab using data\supp_table_gender.csv, replace b(3) ci(3) nogaps title("stratify by gender")
+esttab using data\supp_table_gender.csv, replace b(10) ci(10) nogaps title("stratify by gender")
 
 eststo clear
 forvalues i=2/5 {
@@ -175,16 +175,16 @@ forvalues i=2/5 {
 	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
 .
-esttab using data\supp_table_race.csv, replace b(3) ci(3) nogaps title("stratify by race")
+esttab using data\supp_table_race.csv, replace b(10) ci(10) nogaps title("stratify by race")
 
 eststo clear
 forvalues i=1/5 {
 	quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
+		$house if $sample & $dist & boro_sch=="`i'", robust absorb(boroct2010)
 	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
 .
-esttab using data\supp_table_boro.csv, replace b(3) ci(3) nogaps title("stratify by boro")
+esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("stratify by boro")
 
 ********************************************************************************
 *** check variations within cells
@@ -195,12 +195,43 @@ sort boroct2010 ethnic
 gen marker=1 if $sample & $dist & year==2013
 bys boroct2010: egen pop_total = sum(marker) if $sample & $dist & year==2013
 bys boroct2010 ethnic: egen pop_subgroup = sum(marker) if $sample & $dist & year==2013
-sum pop*
 hist pop_total //looks like a reasonable distribution
 gen percent_subgroup = pop_sub/pop_total if $sample & $dist & year==2013
-
 drop marker
+compress
 preserve
+
+keep if $sample & $dist & year==2013
+duplicates drop boroct2010 ethnic, force
+keep boroct2010 ethnic percent
+gsort -ethnic -percent //find out top 10 CTs heavily leaning towards a specific race
+
+foreach race in asian black hisp white {
+	gen `race'=0
+}
+.
+replace asian=(boroct2010=="40456.00"|boroct2010=="10008.00"|boroct2010=="10029.00"| ///
+	boroct2010=="10041.00"|boroct2010=="10027.00"|boroct2010=="10016.00"| ///
+	boroct2010=="30104.00"|boroct2010=="30106.00"|boroct2010=="40797.01"| ///
+	boroct2010=="40861.00")
+replace black=(boroct2010=="10103.00"|boroct2010=="10113.00"|boroct2010=="40594.00"| ///
+	boroct2010=="40598.00"|boroct2010=="30936.00"|boroct2010=="40518.00"| ///
+	boroct2010=="41010.02"|boroct2010=="30862.00"|boroct2010=="30856.00"| ///
+	boroct2010=="30866.00")
+replace hisp=(boroct2010=="30533.00"|boroct2010=="10267.00"|boroct2010=="20001.00"| ///
+	boroct2010=="30531.00"|boroct2010=="10102.00"|boroct2010=="30515.00"| ///
+	boroct2010=="30529.00"|boroct2010=="10109.00"|boroct2010=="30453.00"| ///
+	boroct2010=="10285.00")
+replace white=(boroct2010=="30616.00"|boroct2010=="40607.01"|boroct2010=="10142.00"| ///
+	boroct2010=="30458.00"|boroct2010=="30056.02"|boroct2010=="40299.00"| ///
+	boroct2010=="10149.00"|boroct2010=="40916.01"|boroct2010=="10060.00"| ///
+	boroct2010=="10013.00"|boroct2010=="10096.00"|boroct2010=="10094.00")
+compress
+save data\race_leaning_ct.dta, replace
+********************************************************************************
+merge m:1 boroct2010 ethnic using data\race_leaning_ct.dta
+drop _mer
+
 
 /*******************************************************************************
 * by gender
