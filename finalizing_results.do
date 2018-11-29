@@ -46,6 +46,7 @@ label values nearestOutlet_sch outlet
 ********************************************************************************
 * summary stats
 * table 1
+{
 * female, race, poverty, lep, sped, native, obesity
 * age, zbmi
 foreach var in female ethnic poor engathome sped native obese {
@@ -54,8 +55,11 @@ foreach var in female ethnic poor engathome sped native obese {
 .
 sum age zbmi if $sample & $dist & year==2013
 bys nearestOutlet_sch: sum age zbmi if $sample & $dist & year==2013
+}
+.
 
 * table 2
+{
 * distance, overall and by nearest outlet type
 sum nearestAnyall_sch if $sample & $dist & year==2013
 tabstat nearestAnyall_sch if $sample & $dist & year==2013, ///
@@ -67,8 +71,11 @@ tabstat nearestAnyall_sch if $sample & nearestAnyall>=1320 & nearestAnyall<=2640
 tab nearestGroup if $sample & $dist & year==2013
 tab nearestOutlet if $sample & $dist & year==2013 & nearestAnyall<1320 
 *tab nearestOutlet if $sample & $dist & year==2013 & nearestAnyall>=1320 & nearestAnyall<=2640
+}
+.
 
 * regression, table 3
+{
 eststo clear
 *quietly eststo: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
 *	$house if $sample & $dist, robust absorb(boroct2010)
@@ -97,8 +104,11 @@ testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet1 //p=0.0001
 testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet2 //p=0.0003
 testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet3 //p=0.0009
 testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet4 //p=0.0014
+}
+.
 
 * figure 1
+{
 quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
 	$house if $sample & $dist, robust absorb(boroct2010)
 quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
@@ -117,15 +127,28 @@ marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60))
 graph save likelihood_10block_without_more_than_1.gph, replace
 
+* figure 1, export data to .csv
+eststo clear
+quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist, robust absorb(boroct2010)
+quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
+esttab using data\fig1.csv, replace b(10) ci(10) nogaps title("fig1")
+}
+.
+
 * table 4
+{
 eststo clear
 quietly eststo: areg obese b2.nearestGroup $demo2 $house if $sample & $dist, robust absorb(boroct2010)
 eststo: margins i.nearestGroup, post
 esttab using main_tables.rtf, append nogaps title("table4 london") b(3) se(3)
 esttab using main_tables.csv, append nogaps title("table4 london") ci(3)
+}
+.
 
 *** suuplemental tables
 * stratification by gender
+{
 eststo clear
 forvalues i=0/1 {
 	quietly eststo: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch ///
@@ -134,8 +157,12 @@ forvalues i=0/1 {
 }
 .
 esttab using supp_table.rtf, replace b(3) se(3) nogaps title("stratify by gender")
+esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by gender, CI")
+}
+.
 
 * stratification by race
+{
 eststo clear
 forvalues i=2/5 {
 	quietly eststo: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch ///
@@ -145,8 +172,12 @@ forvalues i=2/5 {
 }
 .
 esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by race")
+esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by race, CI")
+}
+.
 
 * stratify by boro
+{
 eststo clear
 forvalues i=1/5 {
 	quietly eststo: areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
@@ -155,9 +186,13 @@ forvalues i=1/5 {
 }
 .
 esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by boro")
+esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by boro, CI")
+}
+.
 
 *** export margins and CI estimates to make figures
 *** export .csv files
+{
 eststo clear
 forvalues i=0/1 {
 	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch ///
@@ -180,11 +215,13 @@ esttab using data\supp_table_race.csv, replace b(10) ci(10) nogaps title("strati
 eststo clear
 forvalues i=1/5 {
 	quietly: areg obese c.nearestAnyall_sch##b2.nearestOutlet_sch $demo2 ///
-		$house if $sample & $dist & boro_sch=="`i'", robust absorb(boroct2010)
+		$house if $sample & $dist & boro_sch==`i', robust absorb(boroct2010)
 	quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
 }
 .
 esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("stratify by boro")
+}
+.
 
 ********************************************************************************
 *** check variations within cells
@@ -233,6 +270,8 @@ merge m:1 boroct2010 ethnic using data\race_leaning_ct.dta
 drop _mer
 
 
+*** archive codes
+{
 /*******************************************************************************
 * by gender
 * male students 
@@ -484,24 +523,5 @@ areg obese c.nearestAnyall1000_sch##b2.nearestOutlet_sch $demo2 ///
 	$house if $sample & $dist & boro_sch==5, robust absorb(boroct2010)
 margins i.nearestOutlet_sch, post
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
+.
