@@ -181,6 +181,48 @@ names(boro)
 boro <- boro[, c(16:17, 1, 6:7, 2, 8:9, 3, 10:11, 4, 12:13, 5, 14:15)]
 write.csv(boro, "figure_estimates_boro.csv", row.names = FALSE)
 
+### main analysis, fig 1 ----
+fig1 <- read.csv("fig1.csv", stringsAsFactors=FALSE, header=FALSE)
+head(fig1)
+fig1 <- fig1[-c(1:3, 92:94), ]
 
+# move CIs to separate cols
+dim(fig1)
 
+ci_row <- seq(from=2, to=88, by=2)
+for (i in ci_row) {
+      fig1[i-1, 3] <- fig1[i, 2]
+}
+fig1 <- fig1[-ci_row, ]
+colnames(fig1)[1:3] <- c("group", "likelihood", "ci")
+rm(ci_row, i)
 
+# clean up signs
+fig1[, 2:3] <- apply(fig1[, 2:3], 2, clean_signs)
+ci <- split_clean(x=fig1$ci, str=",", row=dim(fig1)[1])
+fig1 <- cbind(fig1, ci)
+colnames(fig1)[4:5] <- c("ci_lower", "ci_upper")
+fig1 <- fig1[, -3]
+
+# create variables
+# indicate food outlet and distance
+temp <- split_clean(x=fig1$group, str="#", row=dim(fig1)[1])
+fig1$outlet <- substring(temp$X2, 1, 1)
+fig1$dist <- substring(temp$X1, 2, 3)
+fig1$dist <- gsub(patter="\\.", replacement = "", fig1$dist)
+rm(temp)
+fig1$group <- NULL
+
+apply(fig1, 2, class)
+fig1$dist <- as.numeric(fig1$dist)
+fig1$dist <- (fig1$dist-1)*264
+fig1$outlet[fig1$outlet==1] <- "FF"
+fig1$outlet[fig1$outlet==2] <- "BOD"
+fig1$outlet[fig1$outlet==3] <- "WS"
+fig1$outlet[fig1$outlet==4] <- "SUP"
+
+# prepare for export
+fig1 <- fig1[, c(4:5, 1:3)]
+names(fig1)
+write.csv(fig1, "figure_estimates_fig1.csv", row.names = FALSE)
+rm(ci)
