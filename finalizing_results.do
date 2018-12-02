@@ -269,6 +269,58 @@ save data\race_leaning_ct.dta, replace
 merge m:1 boroct2010 ethnic using data\race_leaning_ct.dta
 drop _mer
 
+* summary stats:
+* mean, median, min, max, sd
+eststo clear
+foreach race in asian hisp black white {
+	estpost tabstat nearestAnyall_sch if $sample & $dist & year==2013 & `race'==1, ///
+		stat(mean sd count min max)
+	esttab . using top10race_distance_variance.rtf, append ///
+	cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f)) min(fmt(%12.0f)) max(fmt(%12.0f))") ///
+	title("summary `race'")
+}
+.
+
+* make histograms
+hist nearestAnyall_sch if $sample & $dist & year==2013 & asian==1, ///
+	bin(150) freq ///
+	xtitle("Distance to nearest food outlet", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	title("Asian students") ///
+	ytitle("Number of obs", size(vsmall)) ///
+	ylabel(0(50)200, labsize(vsmall)) ///
+	graphregion(color(white)) bgcolor(white)
+graph save figures\hist_top10_asian.gph, replace
+
+hist nearestAnyall_sch if $sample & $dist & year==2013 & hisp==1, ///
+	bin(150) freq ///
+	xtitle("Distance to nearest food outlet", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	title("Hispanic students") ///
+	ytitle("Number of obs", size(vsmall)) ///
+	ylabel(0(10)50, labsize(vsmall)) ///
+	graphregion(color(white)) bgcolor(white)
+graph save figures\hist_top10_hisp.gph, replace
+
+hist nearestAnyall_sch if $sample & $dist & year==2013 & black==1, ///
+	bin(150) freq ///
+	xtitle("Distance to nearest food outlet", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	title("Black students") ///
+	ytitle("Number of obs", size(vsmall)) ///
+	ylabel(0(12)60, labsize(vsmall)) ///
+	graphregion(color(white)) bgcolor(white)
+graph save figures\hist_top10_black.gph, replace
+
+hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
+	bin(150) freq ///
+	xtitle("Distance to nearest food outlet", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	title("White students") ///
+	ytitle("Number of obs", size(vsmall)) ///
+	ylabel(0(4)20, labsize(vsmall)) ///
+	graphregion(color(white)) bgcolor(white)
+graph save figures\hist_top10_white.gph, replace
 
 *** archive codes
 {
