@@ -157,7 +157,7 @@ forvalues i=0/1 {
 }
 .
 esttab using supp_table.rtf, replace b(3) se(3) nogaps title("stratify by gender")
-esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by gender, CI")
+esttab using raw-tables\supp_table.rtf, append b(3) ci(3) nogaps title("stratify by gender, CI")
 }
 .
 
@@ -172,7 +172,7 @@ forvalues i=2/5 {
 }
 .
 esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by race")
-esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by race, CI")
+esttab using raw-tables\supp_table.rtf, append b(3) ci(3) nogaps title("stratify by race, CI")
 }
 .
 
@@ -276,12 +276,13 @@ foreach race in asian hisp black white {
 	estpost tabstat nearestAnyall_sch if $sample & $dist & year==2013 & `race'==1, ///
 		stat(mean sd count min max)
 	esttab . using top10race_distance_variance.rtf, append ///
-	cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f)) min(fmt(%12.0f)) max(fmt(%12.0f))") ///
-	title("summary `race'")
+		cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f)) min(fmt(%12.0f)) max(fmt(%12.0f))") ///
+		title("summary `race'")
 }
 .
 
 * make histograms
+{
 hist nearestAnyall_sch if $sample & $dist & year==2013 & asian==1, ///
 	bin(150) freq ///
 	xtitle("Distance to nearest food outlet", size(vsmall)) ///
@@ -321,6 +322,8 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
 	ylabel(0(4)20, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
 graph save figures\hist_top10_white.gph, replace
+}
+.
 
 *** archive codes
 {
