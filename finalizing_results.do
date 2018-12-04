@@ -230,6 +230,8 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 * use 2013 as example
 sort boroct2010 ethnic
 gen marker=1 if $sample & $dist & year==2013
+replace marker=0 if missing(marker)
+
 bys boroct2010: egen pop_total = sum(marker) if $sample & $dist & year==2013
 bys boroct2010 ethnic: egen pop_subgroup = sum(marker) if $sample & $dist & year==2013
 hist pop_total //looks like a reasonable distribution
@@ -240,37 +242,59 @@ preserve
 
 keep if $sample & $dist & year==2013
 duplicates drop boroct2010 ethnic, force
-keep boroct2010 ethnic percent
+keep boroct2010 ethnic percent pop*
 gsort -ethnic -percent //find out top 10 CTs heavily leaning towards a specific race
 
 foreach race in asian black hisp white {
 	gen `race'=0
 }
 .
+
+* have enough total num of students until the sum reaches ~1,000 obs
 replace asian=(boroct2010=="40456.00"|boroct2010=="10008.00"|boroct2010=="10029.00"| ///
 	boroct2010=="10041.00"|boroct2010=="10027.00"|boroct2010=="10016.00"| ///
 	boroct2010=="30104.00"|boroct2010=="30106.00"|boroct2010=="40797.01"| ///
 	boroct2010=="40861.00")
-replace black=(boroct2010=="10103.00"|boroct2010=="10113.00"|boroct2010=="40594.00"| ///
-	boroct2010=="40598.00"|boroct2010=="30936.00"|boroct2010=="40518.00"| ///
-	boroct2010=="41010.02"|boroct2010=="30862.00"|boroct2010=="30856.00"| ///
-	boroct2010=="30866.00")
 replace hisp=(boroct2010=="30533.00"|boroct2010=="10267.00"|boroct2010=="20001.00"| ///
 	boroct2010=="30531.00"|boroct2010=="10102.00"|boroct2010=="30515.00"| ///
 	boroct2010=="30529.00"|boroct2010=="10109.00"|boroct2010=="30453.00"| ///
-	boroct2010=="10285.00")
+	boroct2010=="10285.00"|boroct2010=="10277.00"|boroct2010=="10269.00"| ///
+	boroct2010=="30002.00"|boroct2010=="30523.00"|boroct2010=="30527.00"| ///
+	boroct2010=="10293.00")
+replace black=(boroct2010=="10103.00"|boroct2010=="10113.00"|boroct2010=="40594.00"| ///
+	boroct2010=="40598.00"|boroct2010=="30936.00"|boroct2010=="40518.00"| ///
+	boroct2010=="41010.02"|boroct2010=="30862.00"|boroct2010=="30856.00"| ///
+	boroct2010=="30866.00"|boroct2010=="40616.01"|boroct2010=="31004.00"| ///
+	boroct2010=="40682.00"|boroct2010=="31006.00"|boroct2010=="30848.00"| ///
+	boroct2010=="30780.00"|boroct2010=="40590.00"|boroct2010=="40530.00"| ///
+	boroct2010=="30984.00"|boroct2010=="30992.00")
 replace white=(boroct2010=="30616.00"|boroct2010=="40607.01"|boroct2010=="10142.00"| ///
 	boroct2010=="30458.00"|boroct2010=="30056.02"|boroct2010=="40299.00"| ///
 	boroct2010=="10149.00"|boroct2010=="40916.01"|boroct2010=="10060.00"| ///
-	boroct2010=="10013.00"|boroct2010=="10096.00"|boroct2010=="10094.00")
+	boroct2010=="10013.00"|boroct2010=="10096.00"|boroct2010=="10094.00"| ///
+	boroct2010=="30610.02"|boroct2010=="50244.02"|boroct2010=="30356.02"| ///
+	boroct2010=="10037.00"|boroct2010=="30702.01"|boroct2010=="40922.00"| ///
+	boroct2010=="50279.00"|boroct2010=="30612.00"|boroct2010=="50198.00"| ///
+	boroct2010=="50244.01"|boroct2010=="30354.00"|boroct2010=="30350.00"| ///
+	boroct2010=="30414.02")
+drop pop* percent ethnic
+duplicates drop boroct2010, force
 compress
 save data\race_leaning_ct.dta, replace
 ********************************************************************************
-merge m:1 boroct2010 ethnic using data\race_leaning_ct.dta
+merge m:1 boroct2010 using data\race_leaning_ct.dta
 drop _mer
 
-* summary stats:
+*** summary stats:
 * mean, median, min, max, sd
+eststo clear
+estpost tabstat nearestAnyall_sch if $sample & $dist & year==2013 & (asian==1| ///
+	hisp==1|black==1|white==1), stat(mean sd count min max)
+esttab . using top10race_distance_variance.rtf, replace ///
+	cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f)) min(fmt(%12.0f)) max(fmt(%12.0f))") ///
+	title("summary total")
+unique(boroct2010) if $sample & $dist & year==2013 & (asian==1|	hisp==1|black==1|white==1)
+
 eststo clear
 foreach race in asian hisp black white {
 	estpost tabstat nearestAnyall_sch if $sample & $dist & year==2013 & `race'==1, ///
@@ -278,6 +302,15 @@ foreach race in asian hisp black white {
 	esttab . using top10race_distance_variance.rtf, append ///
 		cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f)) min(fmt(%12.0f)) max(fmt(%12.0f))") ///
 		title("summary `race'")
+	unique(boroct2010) if $sample & $dist & year==2013 & `race'==1
+}
+.
+
+* type of nearest food outlet
+* do they vary
+tabstat nearestGroup if $sample & $dist & year==2013 & (asian==1|hisp==1|black==1|white==1)
+foreach race in asian hisp black white {
+	tab nearestGroup if $sample & $dist & year==2013 & `race'==1
 }
 .
 
@@ -291,7 +324,7 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & asian==1, ///
 	ytitle("Number of obs", size(vsmall)) ///
 	ylabel(0(50)200, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\hist_top10_asian.gph, replace
+graph save figures\asian_top10variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & hisp==1, ///
 	bin(150) freq ///
@@ -299,9 +332,9 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & hisp==1, ///
 	xlabel(0(264)2640, labsize(vsmall)) ///
 	title("Hispanic students") ///
 	ytitle("Number of obs", size(vsmall)) ///
-	ylabel(0(10)50, labsize(vsmall)) ///
+	ylabel(0(50)250, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\hist_top10_hisp.gph, replace
+graph save figures\hisp_top10variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & black==1, ///
 	bin(150) freq ///
@@ -309,9 +342,9 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & black==1, ///
 	xlabel(0(264)2640, labsize(vsmall)) ///
 	title("Black students") ///
 	ytitle("Number of obs", size(vsmall)) ///
-	ylabel(0(12)60, labsize(vsmall)) ///
+	ylabel(0(20)100, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\hist_top10_black.gph, replace
+graph save figures\black_top10variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
 	bin(150) freq ///
@@ -319,9 +352,9 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
 	xlabel(0(264)2640, labsize(vsmall)) ///
 	title("White students") ///
 	ytitle("Number of obs", size(vsmall)) ///
-	ylabel(0(4)20, labsize(vsmall)) ///
+	ylabel(0(50)500, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\hist_top10_white.gph, replace
+graph save figures\white_top10variance.gph, replace
 }
 .
 
