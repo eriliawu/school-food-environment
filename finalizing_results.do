@@ -110,8 +110,8 @@ testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet4 //p=0.0014
 * figure 1
 {
 quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
-	$house if $sample & $dist, robust absorb(boroct2010)
-quietly: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
+	$house if $sample & $dist, robust absorb(boroct2010) 
+quietly: margins nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640))
 marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
 	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
 	title("") ///
@@ -135,6 +135,18 @@ quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) 
 esttab using data\fig1.csv, replace b(10) ci(10) nogaps title("fig1")
 }
 .
+
+* following table 3
+* compare point estimates on diff points along the lines
+* compare diff points on the same line, and same dist on diff lines
+set matsize 1000
+quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist, robust absorb(boroct2010) 
+eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) pwcompare post //copy the tablee
+quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample & $dist, robust absorb(boroct2010) 
+margins r.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) //copy the table
+
 
 * table 4
 {
@@ -225,6 +237,7 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 
 ********************************************************************************
 *** check variations within cells
+{
 * select top 10 census tracts that are heavily black/hispanic/asian
 * see how much variance is there for nearest outlet distance and type of outlet to school
 * use 2013 as example
@@ -308,9 +321,11 @@ foreach race in asian hisp black white {
 
 * type of nearest food outlet
 * do they vary
-tabstat nearestGroup if $sample & $dist & year==2013 & (asian==1|hisp==1|black==1|white==1)
+tab nearestGroup if $sample & $dist & year==2013 & (asian==1|hisp==1|black==1|white==1)
 foreach race in asian hisp black white {
 	tab nearestGroup if $sample & $dist & year==2013 & `race'==1
+}
+.
 }
 .
 
@@ -324,7 +339,7 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & asian==1, ///
 	ytitle("Number of obs", size(vsmall)) ///
 	ylabel(0(50)200, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\asian_top10variance.gph, replace
+graph save figures\asian_variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & hisp==1, ///
 	bin(150) freq ///
@@ -334,7 +349,7 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & hisp==1, ///
 	ytitle("Number of obs", size(vsmall)) ///
 	ylabel(0(50)250, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\hisp_top10variance.gph, replace
+graph save figures\hisp_variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & black==1, ///
 	bin(150) freq ///
@@ -344,7 +359,7 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & black==1, ///
 	ytitle("Number of obs", size(vsmall)) ///
 	ylabel(0(20)100, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\black_top10variance.gph, replace
+graph save figures\black_variance.gph, replace
 
 hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
 	bin(150) freq ///
@@ -354,9 +369,14 @@ hist nearestAnyall_sch if $sample & $dist & year==2013 & white==1, ///
 	ytitle("Number of obs", size(vsmall)) ///
 	ylabel(0(50)500, labsize(vsmall)) ///
 	graphregion(color(white)) bgcolor(white)
-graph save figures\white_top10variance.gph, replace
+graph save figures\white_variance.gph, replace
 }
 .
+
+*** how the sample was derived
+
+
+
 
 *** archive codes
 {
