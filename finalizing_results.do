@@ -139,6 +139,7 @@ esttab using data\fig1.csv, replace b(10) ci(10) nogaps title("fig1")
 * following table 3
 * compare point estimates on diff points along the lines
 * compare diff points on the same line, and same dist on diff lines
+{
 set matsize 1000
 quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
 	$house if $sample & $dist, robust absorb(boroct2010) 
@@ -146,15 +147,17 @@ eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) pwcompar
 quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
 	$house if $sample & $dist, robust absorb(boroct2010) 
 margins r.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) //copy the table
-
+}
+.
 
 * table 4
 {
 eststo clear
-quietly eststo: areg obese b2.nearestGroup $demo2 $house if $sample & $dist, robust absorb(boroct2010)
+quietly eststo: areg obese b2.nearestGroup $demo2 $house $tenblocks ///
+	if $sample & $dist, robust absorb(boroct2010)
 eststo: margins i.nearestGroup, post
 esttab using main_tables.rtf, append nogaps title("table4 london") b(3) se(3)
-esttab using main_tables.csv, append nogaps title("table4 london") ci(3)
+esttab using main_tables_margins_estimates.csv, append nogaps title("table4 london") ci(10) b(10)
 }
 .
 
