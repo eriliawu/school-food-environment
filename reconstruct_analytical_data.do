@@ -70,7 +70,141 @@ save student_analytical+address_09-13.dta, replace
 unique(bds year) //9427 school+year, 5709080 students
 unique(bds) //2191 schools overall
 
-*** 
+*** attach distance measurements
+* link raw output from ArcGIS to school addresses
+cd "H:\Personal\food environment paper 1"
+*use "school address\unique_sch_all.dta", clear
+*2009
+{
+foreach var in FFOR BOD WS C6P {
+	import delimited 2009\closest\closest`var'_sch.csv, clear
+	keep total incidentid name
+	rename total `var'_sch
+	rename name `var'name_sch
+	rename incident id
+	gen year=2009
+	replace id = id-284653
+	compress
+	save archive\closest`var'sch_2009.dta, replace
+}
+.
+
+foreach var in FFOR BOD WS {
+	merge 1:1 id using archive\closest`var'sch_2009.dta
+	drop _merge
+	erase archive\closest`var'sch_2009.dta
+}
+.
+compress
+save archive\closest_sch_2009.dta, replace
+erase archive\closestC6Psch_2009.dta
+}
+.
+
+*2010
+{
+foreach var in FFOR BOD WS C6P {
+	import delimited 2010\closest\closest`var'_sch.csv, clear
+	keep total incidentid name
+	rename total `var'_sch
+	rename name `var'name_sch
+	rename incident id
+	gen year=2010
+	replace id = id-285724
+	compress
+	save archive\closest`var'sch_2010.dta, replace
+}
+.
+
+foreach var in FFOR BOD WS {
+	merge 1:1 id using archive\closest`var'sch_2010.dta
+	drop _merge
+	erase archive\closest`var'sch_2010.dta
+}
+.
+compress
+save archive\closest_sch_2010.dta, replace
+erase archive\closestC6Psch_2010.dta
+}
+.
+
+*2011-13
+{
+foreach i in 11 12 13 {
+	foreach var in FFOR BOD WS C6P {
+		import delimited 20`i'\closest\closest`var'_sch.csv, clear
+		keep total incidentid name
+		rename total `var'_sch
+		rename name `var'name_sch
+		rename incident id
+		gen year=20`i'
+		compress
+		save archive\closest`var'sch_20`i'.dta, replace
+	}
+	.
+
+	foreach var in FFOR BOD WS {
+		merge 1:1 id using archive\closest`var'sch_20`i'.dta
+		drop _merge
+		erase archive\closest`var'sch_20`i'.dta
+	}
+	.
+	compress
+	save archive\closest_sch_20`i'.dta, replace
+	erase archive\closestC6Psch_20`i'.dta
+}
+}
+.
+
+* combine all years
+foreach i in 09 10 11 12 {
+	append using archive\closest_sch_20`i'.dta
+	erase archive\closest_sch_20`i'.dta
+}
+.
+compress
+save archive\closest_sch_allyears.dta, replace
+erase archive\closest_sch_2013.dta
+
+* link resutls to school coordinates
+*use archive\closest_sch_allyears.dta, clear
+merge 1:1 id year using "school address\unique_sch_all.dta"
+drop _merge
+rename x x_sch
+rename y y_sch
+merge 1:m x_sch y_sch year using "S:\Personal\hw1220\food environment paper 1\archive\student_analytical+address_09-13.dta"
+drop _merge id
+
+foreach var in FFOR BOD WS C6P {
+	label var `var'_sch "distance to nearest `var' from school"
+	label var `var'name_sch "name of nearest `var'"
+}
+.
+
+*** create analytical variables
+* distance to nearest outlet
+* type of nearest food outlet
+egen nearestDist = rowmin(FFOR_sch BOD_sch WS_sch C6P_sch)
+gen nearestOutlet_sch = 1 if FFOR_sch<BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch
+replace nearestOutlet_sch = 2 if BOD_sch<FFOR_sch & BOD_sch<WS_sch & BOD_sch<C6P_sch
+replace nearestOutlet_sch = 3 if WS_sch<BOD_sch & WS_sch<FFOR_sch & WS_sch<C6P_sch
+replace nearestOutlet_sch = 4 if C6P_sch<FFOR_sch & C6P_sch<WS_sch & C6P_sch<BOD_sch
+
+label var nearestDist "dist to nearest food outlet from school"
+label var nearestOutlet "type of nearest food outlet from school"
+
+compress
+cd "S:\Personal\hw1220\food environment paper 1\analytical-data"
+save food-environment-reconstructed.dta, replace
+
+
+
+
+
+
+
+
+
 
 
 
