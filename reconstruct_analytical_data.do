@@ -193,12 +193,46 @@ replace nearestOutlet_sch = 4 if C6P_sch<FFOR_sch & C6P_sch<WS_sch & C6P_sch<BOD
 label var nearestDist "dist to nearest food outlet from school"
 label var nearestOutlet "type of nearest food outlet from school"
 
+*tab grade
+gen level=1 if grade>=0 & grade <=5
+replace level=2 if grade>=6 & grade<=8
+replace level=3 if grade>=9 & grade<=12
+label var level "school level"
+label define level 1 "k-5" 2 "6-8" 3 "9-12"
+label values level level
+
+unique(newid year)
+duplicates tag newid year, gen(dup)
+br if dup!=0
+unique(newid year) if !missing(newid)
+drop dup
+drop if missing(newid)
+
+cd "S:\Personal\hw1220\FF free zone\data"
+
+*** weight and BMI data
+merge 1:1 newid year using bmi_temp.dta
+drop if year>=2014 & year<=2017
+drop _merge
+
+*** merge to identify continuously operated schools
+rename bds bdsnew
+merge m:1 bdsnew year using "S:\Personal\hw1220\FF free zone\data\bdsnew year continuously operating schools ay 2009-2013.dta"
+drop _merge
+rename bdsnew bds
+drop y_school
+rename contop continuous
+label var conti "school continuously operated between 09-13"
+drop age_mo
+
+*** mrege housing data
+
+
+
+
 compress
-cd "S:\Personal\hw1220\food environment paper 1\analytical-data"
-save food-environment-reconstructed.dta, replace
-
-
-
+save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
+erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
 
 
 
