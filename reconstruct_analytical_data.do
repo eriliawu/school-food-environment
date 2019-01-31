@@ -225,21 +225,111 @@ rename contop continuous
 label var conti "school continuously operated between 09-13"
 drop age_mo
 
+* add school district
+gen district = substr(bds, 2, 2)
+destring district, replace
+label var district "school district"
+
+* house cleaning on demographic vars
+rename ethnic2 ethnic
+label var x_sch "school x coordinate"
+label var y_sch "school y coordinate"
+label var bds "boro+district+school code"
+label var grade "grade"
+label var lep "limited English proficiency"
+label var ethnic "2 Asian, 3 Hisp, 4 Black, 5 White"
+label var sped "special ed"
+label var native "native born"
+label var eng_home "speak English at home"
+label var newid "unique student ID"
+label var boro_sch "schoool boro"
+
+order newid year grade age lep-eng_home poor dist boro-lon bds continuous ///
+	district level dist_sch x_sch y_sch boro_sch lat_sch-bbl_sch ///
+	weight_kg-underweight nearest Dist nearestOutlet_sch FFOR_sch FFORname_sch ///
+	BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch
+
+count //5,729,304
+tab grade //all good
+tab age //table this
+tab lep //have missing data
+tab ethnic //have missing data
+tab sped //have missing data
+tab native //have missing data
+tab female //have missing data
+tab eng_home //have missing data
+tab poor //have missing data
+
+replace ethnic=2 if ethnic==1|ethnic>5
+
+*** filling in missing values if the same student has data on other years
+sort newid year
+foreach var in ethnic female native poor eng_home {
+	bys newid: egen `var'2=mode(`var')
+	tab `var'
+	tab `var'2
+	drop `var'
+	rename `var'2 `var'
+}
+.
+
 *** mrege housing data
-
-
-
 
 compress
 save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
 erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
 
+********************************************************************************
+*** derive sample
+* with address data, home and school
+* student level demo data
+* housing data
+* weight data
+* further from border, 0.5 mile, home and school
+* districts 1-32 schools only
+* only schools continuously operated from 09-12
+
+* define sample
+global sample dist>2640 & dist_sch>=2640 & !missing(grade) & !missing(native) & level==3
+global dist nearestDist<=2640 & !missing(nearestOutlet)
+
+*** data we started off with
+** high schools only
+unique(bds year) if level==3 //2674
+unique(bds) if level==3 //706
+count if level==3 //1,483,223
+
+** add restrictions on schools
+unique(bds year) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
+	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist<=2640 ///
+	& !missing(nearestOutlet) //1501
+
+unique(bds) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
+	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist<=2640 ///
+	& !missing(nearestOutlet) //337
+
+** add restrictions on students
+* in district 1-32 schools
+* no home/school address data
+* no demo data
+* no weight/height data
+* home/school within 0.5 mile from city border
+* multiple food outlets as the nearest
+* not having a food outlet within 0.5 mile from school
 
 
 
 
 
 
+count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>2640 & dist_sch>2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & !missing(nearestOutlet) //734,861
 
+global sample
+sum age if $sample
+tab nearestOutlet if $sample
 
 
