@@ -184,14 +184,23 @@ foreach var in FFOR BOD WS C6P {
 *** create analytical variables
 * distance to nearest outlet
 * type of nearest food outlet
-egen nearestDist = rowmin(FFOR_sch BOD_sch WS_sch C6P_sch)
-gen nearestOutlet_sch = 1 if FFOR_sch<BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch
-replace nearestOutlet_sch = 2 if BOD_sch<FFOR_sch & BOD_sch<WS_sch & BOD_sch<C6P_sch
-replace nearestOutlet_sch = 3 if WS_sch<BOD_sch & WS_sch<FFOR_sch & WS_sch<C6P_sch
-replace nearestOutlet_sch = 4 if C6P_sch<FFOR_sch & C6P_sch<WS_sch & C6P_sch<BOD_sch
+egen nearestDist_sch = rowmin(FFOR_sch BOD_sch WS_sch C6P_sch) if !missing(FFOR_sch)
+gen nearestOutlet_sch = 1 if FFOR_sch<BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch & !missing(FFOR_sch)
+replace nearestOutlet_sch = 2 if BOD_sch<FFOR_sch & BOD_sch<WS_sch & BOD_sch<C6P_sch & !missing(FFOR_sch)
+replace nearestOutlet_sch = 3 if WS_sch<BOD_sch & WS_sch<FFOR_sch & WS_sch<C6P_sch & !missing(FFOR_sch)
+replace nearestOutlet_sch = 4 if C6P_sch<FFOR_sch & C6P_sch<WS_sch & C6P_sch<BOD_sch & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if FFOR_sch==nearestDist & BOD_sch==nearestDist & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if FFOR_sch==nearestDist & WS_sch==nearestDist & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if FFOR_sch==nearestDist & C6P_sch==nearestDist & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if BOD_sch==nearestDist & WS_sch==nearestDist & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if BOD_sch==nearestDist & C6P_sch==nearestDist & !missing(FFOR_sch)
+replace nearestOutlet_sch = 5 if WS_sch==nearestDist & C6P_sch==nearestDist & !missing(FFOR_sch)
+tab nearestOutlet_sch
 
 label var nearestDist "dist to nearest food outlet from school"
 label var nearestOutlet "type of nearest food outlet from school"
+label define outlet 1 "FFOR" 2 "BOD" 3 "WS" 4 "SUP" 5 "More than 1", replace
+label values nearestOutlet outlet
 
 *tab grade
 gen level=1 if grade>=0 & grade <=5
@@ -246,7 +255,7 @@ label var boro_sch "schoool boro"
 
 order newid year grade age lep-eng_home poor dist boro-lon bds continuous ///
 	district level dist_sch x_sch y_sch boro_sch lat_sch-bbl_sch ///
-	weight_kg-underweight nearest Dist nearestOutlet_sch FFOR_sch FFORname_sch ///
+	weight_kg-underweight nearestDist nearestOutlet_sch FFOR_sch FFORname_sch ///
 	BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch
 
 count //5,729,304
@@ -289,10 +298,6 @@ erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
 * districts 1-32 schools only
 * only schools continuously operated from 09-12
 
-* define sample
-global sample dist>2640 & dist_sch>=2640 & !missing(grade) & !missing(native) & level==3
-global dist nearestDist<=2640 & !missing(nearestOutlet)
-
 *** data we started off with
 ** high schools only
 unique(bds year) if level==3 //2674
@@ -310,25 +315,42 @@ unique(bds) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
 
 ** add restrictions on students
 * in district 1-32 schools
+unique(newid) if level==3 & district>=1 & district<=32 //607,345
+global start_sample level==3 & district>=1 & district<=32
 * no home/school address data
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) //82203
 * no demo data
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) //17760
 * no weight/height data
+unique(newid) if $start_sample & missing(obese) //255175
 * home/school within 0.5 mile from city border
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) //25934
 * multiple food outlets as the nearest
+unique(newid) if $start_sample & nearestOutlet==5 //82467
 * not having a food outlet within 0.5 mile from school
-
-
-
-
-
-
-count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
-	& dist>2640 & dist_sch>2640 & district>=1 & district<=32 & continuous==1 ///
+unique(newid) if $start_sample & nearestDist>2640 //49731
+* not being in continuously operated schools
+unique(newid) if $start_sample & continuous!=1 //98263
+* sample
+unique(newid) if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & !missing(nearestOutlet) //734,861
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4 //361942
+* sample, student-year observation
+count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4 //734,861
 
-global sample
+global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4
 sum age if $sample
 tab nearestOutlet if $sample
 
