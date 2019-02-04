@@ -33,6 +33,7 @@ rename WA2_YCoordinate y_sch
 rename boro boro_sch
 rename WA2_Latitude lat_sch
 rename WA2_Longitude lon_sch
+rename WA2_BBL bbl
 keep if !missing(x_sch) & !missing(y_sch)
 keep if year>=2009 & year<=2013
 tab boro
@@ -282,8 +283,6 @@ foreach var in ethnic female native poor eng_home {
 }
 .
 
-*** mrege housing data
-
 * create dist measure with 1000 ft as unit
 rename nearestDist nearestDist_sch
 gen nearestDistk_sch = nearestDist_sch/1000
@@ -306,87 +305,62 @@ label values nearestGroup_sch group
 tab nearestGroup
 
 compress
-save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
+save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed_temp.dta", replace
 erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
 
+*** attache home BBL
+cd "S:\Personal\hw1220\FF free zone\data"
+foreach i in 09 10 11 12 13 {
+	use "S:\Restricted Data\Geocoding\AP\newid ap coordinates 20`i'.dta", clear
+	keep newid year WA2_BBL
+	rename WA2_BBL bbl
+	drop if missing(newid)
+	compress
+	save bbl`i'.dta, replace
+}
+.
 
-********************************************************************************
-*** derive sample
-* with address data, home and school
-* student level demo data
-* housing data
-* weight data
-* further from border, 0.5 mile, home and school
-* districts 1-32 schools only
-* only schools continuously operated from 09-12
+foreach i in 09 10 11 12 {
+	append using bbl`i'.dta
+	erase bbl`i'.dta
+}
+.
+count if missing(newid)|missing(year)|missing(bbl)
+compress
+save bbl09-13.dta, replace
+erase bbl13.dta
+unique(newid year) //check before merge
 
-*** data we started off with
-** high schools only
-unique(bds year) if level==3 //2674
-unique(bds) if level==3 //706
-count if level==3 //1,483,223
+merge 1:1 newid year using "S:\Personal\hw1220\FF free zone\food-environment-reconstructed_temp.dta"
+drop _merge
+label var bbl "BBL home"
+order newid year-boro bbl x-nearestGroup_sch
 
-** add restrictions on schools
-unique(bds year) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
-	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist<=2640 ///
-	& !missing(nearestOutlet) //1501
+*** mrege housing data
+merge m:1 bbl using "S:\Personal\hw1220\FF free zone\data\housing_type.dta"
+drop if missing(newid)
+drop _merge
+rename bldgrp bldg_type
+label var boroct2010 "home boro+census tract 2010"
+label var bldg_type "type of building"
+label var nycha "public housing building"
 
-unique(bds) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
-	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist<=2640 ///
-	& !missing(nearestOutlet) //337
+sort newid year
+drop if missing(newid)|newid=="."
 
-** add restrictions on students
-* in district 1-32 schools
-unique(newid) if level==3 & district>=1 & district<=32 //607,345
-global start_sample level==3 & district>=1 & district<=32
-* no home/school address data
-unique(newid) if $start_sample & (missing(x)|missing(x_sch)) //82203
-* no demo data
-unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
-	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
-	missing(age)|missing(poor)) //17760
-* no weight/height data
-unique(newid) if $start_sample & missing(obese) //255175
-* home/school within 0.5 mile from city border
-unique(newid) if $start_sample & (dist<2640|dist_sch<2640) //25934
-* multiple food outlets as the nearest
-unique(newid) if $start_sample & nearestOutlet==5 //82467
-* not having a food outlet within 0.5 mile from school
-unique(newid) if $start_sample & nearestDist>2640 //49731
-* not being in continuously operated schools
-unique(newid) if $start_sample & continuous!=1 //98263
-* sample
-unique(newid) if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+compress
+save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
+erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
+erase "S:\Personal\hw1220\FF free zone\food-environment-reconstructed_temp.dta"
+
+
+
+count if level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4 //361942
-* sample, student-year observation
-count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
-	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
-	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
-	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4 //734,861
-
-global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
-	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
-	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
-	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4
-sum age if $sample
-tab nearestOutlet if $sample
-
-********************************************************************************
-*** analytical section
-*** summary stats and regression
-global demo b5.ethnic female poor native sped eng_home age i.grade i.year
-
-
-
-
-
-
-
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
+	& !missing(nycha) & !missing(bldg_type) //688,923
 
 
 
