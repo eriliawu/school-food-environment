@@ -284,9 +284,31 @@ foreach var in ethnic female native poor eng_home {
 
 *** mrege housing data
 
+* create dist measure with 1000 ft as unit
+rename nearestDist nearestDist_sch
+gen nearestDistk_sch = nearestDist_sch/1000
+label var nearestDistk_sch "dist to nearest food outlet in 1000 ft."
+
+* 0-5 & 5-10 blocks, london model
+gen nearestGroup_sch = 1 if $sample & nearestOutlet_sch==1 & nearestDist_sch<=1320
+replace nearestGroup_sch = 2 if $sample & nearestOutlet_sch==2 & nearestDist_sch<=1320
+replace nearestGroup_sch = 3 if $sample & nearestOutlet_sch==3 & nearestDist_sch<=1320
+replace nearestGroup_sch = 4 if $sample & nearestOutlet_sch==4 & nearestDist_sch<=1320
+replace nearestGroup_sch = 5 if $sample & nearestOutlet_sch==1 & nearestDist_sch<=2640 & nearestDist_sch>1320
+replace nearestGroup_sch = 6 if $sample & nearestOutlet_sch==2 & nearestDist_sch<=2640 & nearestDist_sch>1320
+replace nearestGroup_sch = 7 if $sample & nearestOutlet_sch==3 & nearestDist_sch<=2640 & nearestDist_sch>1320
+replace nearestGroup_sch = 8 if $sample & nearestOutlet_sch==4 & nearestDist_sch<=2640 & nearestDist_sch>1320
+
+label var nearestGroup_sch "nearest food outlet in group"
+label define group 1 "FFOR 0-5" 2 "BOD 0-5" 3 "WS 0-5" 4 "SUP 0-5" ///
+	5 "FFOR 5-10" 6 "BOD 5-10" 7 "WS 5-10" 8 "SUP 5-10", replace
+label values nearestGroup_sch group
+tab nearestGroup
+
 compress
 save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
 erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
+
 
 ********************************************************************************
 *** derive sample
@@ -350,8 +372,27 @@ global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & !missing(FFOR_sch) & nearestDist<=2640 & nearestOutlet<=4
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4
 sum age if $sample
 tab nearestOutlet if $sample
+
+********************************************************************************
+*** analytical section
+*** summary stats and regression
+global demo b5.ethnic female poor native sped eng_home age i.grade i.year
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
