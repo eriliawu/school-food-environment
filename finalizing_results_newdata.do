@@ -6,13 +6,6 @@ use "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", clear
 cd "C:\Users\wue04\Box Sync\school-food-env\school-food-environment"
 
 ************* house cleaning ***************************************************
-tab grade
-gen level=1 if grade>=0 & grade <=5
-replace level=2 if grade>=6 & grade<=8
-replace level=3 if grade>=9 & grade<=12
-label var level "school level"
-label define level 1 "k-5" 2 "6-8" 3 "9-12"
-label values level level
 ********************************************************************************
 *** derive sample
 * with address data, home and school
@@ -23,42 +16,68 @@ label values level level
 * districts 1-32 schools only
 * only schools continuously operated from 09-12
 
+*** data we started off with
+** high schools only
+unique(bds year) if level==3 //2674
+unique(bds) if level==3 //706
+count if level==3 //1,483,223
 
-* define sample
-global sample dist>2640 & dist_sch>=2640 & !missing(grade) & !missing(nat) & level==3
-global dist nearestDist<=2640 & !missing(nearestOutlet)
+** add restrictions on schools
+unique(bds year) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
+	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist_sch<=2640 ///
+	& !missing(nearestOutlet) //1501
 
-* covariates
-global demo b5.ethnic2 female poorever native sped lep age i.graden i.year
-global demo2 b5.ethnic2 female poorever native sped engathome age i.graden i.year
-global house publichousing fam1 coop fam2to4 fam5ormore condo mixeduse otherres nonres
-global tenblocks n2640BOD_sch n2640C6P_sch n2640FFOR_sch n2640WS_sch
+unique(bds) if level==3 & !missing(x_sch) & dist_sch>2640 & district>=1 ///
+	& district<=32 & continuous==1 & !missing(FFOR_sch) & nearestDist_sch<=2640 ///
+	& !missing(nearestOutlet) //337
+
+** add restrictions on students
+* in district 1-32 schools
+unique(newid) if level==3 & district>=1 & district<=32 //607,345
+global start_sample level==3 & district>=1 & district<=32
+* no home/school address data
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) //82203
+* no demo data
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) //17760
+* no weight/height data
+unique(newid) if $start_sample & missing(obese) //255175
+* home/school within 0.5 mile from city border
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) //25934
+* multiple food outlets as the nearest
+unique(newid) if $start_sample & nearestOutlet==5 //82467
+* not having a food outlet within 0.5 mile from school
+unique(newid) if $start_sample & nearestDist_sch>2640 //49731
+* not being in continuously operated schools
+unique(newid) if $start_sample & continuous!=1 //98263
+* sample
+unique(newid) if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 //361942
+* sample, student-year observation
+count if level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 //734,861
+
+global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4
+sum age if $sample
+tab nearestOutlet if $sample
+
 ********************************************************************************
-* create new variables
-gen nearestAnyall1000_sch = nearestAnyall_sch/1000
+*** analytical section
+*** summary stats and regression
+global demo b5.ethnic female poor native sped eng_home age i.grade i.year
 
-* 0-5 & 5-10 blocks, london model
-gen nearestGroup_sch = 1 if $sample & nearestOutlet_sch==1 & nearestAnyall_sch<1320
-replace nearestGroup_sch = 2 if $sample & nearestOutlet_sch==2 & nearestAnyall_sch<1320
-replace nearestGroup_sch = 3 if $sample & nearestOutlet_sch==3 & nearestAnyall_sch<1320
-replace nearestGroup_sch = 4 if $sample & nearestOutlet_sch==4 & nearestAnyall_sch<1320
-replace nearestGroup_sch = 5 if $sample & nearestOutlet_sch==1 & nearestAnyall_sch<2640 & nearestAnyall_sch>=1320
-replace nearestGroup_sch = 6 if $sample & nearestOutlet_sch==2 & nearestAnyall_sch<2640 & nearestAnyall_sch>=1320
-replace nearestGroup_sch = 7 if $sample & nearestOutlet_sch==3 & nearestAnyall_sch<2640 & nearestAnyall_sch>=1320
-replace nearestGroup_sch = 8 if $sample & nearestOutlet_sch==4 & nearestAnyall_sch<2640 & nearestAnyall_sch>=1320
 
-label var nearestGroup_sch "nearest food outlet in group"
-label define group 1 "FFOR 0-5" 2 "BOD 0-5" 3 "WS 0-5" 4 "C6P 0-5" ///
-	5 "FFOR 5-10" 6 "BOD 5-10" 7 "WS 5-10" 8 "C6P 5-10", replace
-label values nearestGroup_sch group
-tab nearestGroup
-
-destring boro_sch, replace
-
-* make figures for supp analyses
-label define outlet 1 "Fast food" 2 "Corner store" 3 "Wait service" 4 "Supermarket" ///
-	5 "More than 1", replace
-label values nearestOutlet_sch outlet
 
 ********************************************************************************
 * summary stats
