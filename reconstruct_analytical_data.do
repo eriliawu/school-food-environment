@@ -354,7 +354,7 @@ erase "S:\Personal\hw1220\FF free zone\data\bmi_temp.dta"
 erase "S:\Personal\hw1220\FF free zone\food-environment-reconstructed_temp.dta"
 
 
-
+********************************************************************************
 count if level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
@@ -362,6 +362,20 @@ count if level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obe
 	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
 	& !missing(nycha) & !missing(bldg_type) //688,923
 
+global sample level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
+	& !missing(nycha) & !missing(bldg_type)
+keep if $sample
+keep newid year x y FFOR_sch BOD_sch WS_sch C6P_sch
+reshape wide x y FFOR_sch BOD_sch WS_sch C6P_sch, i(newid) j(year)
+
+foreach var in FFOR BOD WS C6P {
+	pwcorr `var'_sch2009 `var'_sch2010 `var'_sch2011 `var'_sch2012 `var'_sch2013
+}
+.
 
 
 
