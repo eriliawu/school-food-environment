@@ -329,14 +329,14 @@ unique(newid) if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
-	& !missing(boroct2010) //377,123
+	& !missing(boroct2010) //409,450
 * sample, student-year observation
-count if level==3 & !missing(x) & !missing(x_sch) & !missing(bbl) & !missing(obese) ///
+count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
-	& !missing(boroct2010) //754,932
+	& !missing(boroct2010) //821,481
 
 global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 ///
@@ -528,4 +528,19 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 }
 .
 
+{ //fill up boroct2010 from exsiting dataset
+/* 
 merge 1:1 newid year using "S:\Personal\hw1220\FF free zone\temp.dta"
+replace boroct2010=boroct2010_new if missing(boroct2010) & x==x_new & y==y_new ///
+	& !missing(boroct2010_new)
+foreach var in x y boroct2010 {
+	replace `var'=`var'_new if missing(`var') & !missing(`var'_new) & !missing(FFOR_sch)
+}
+.
+gen boroct_1=substr(boroct2010, 1, 5)
+gen boroct_2=substr(boroct2010, -2, 2)
+replace boroct2010 = boroct_1 + boroct_2
+drop *_new
+*/ }
+.
+
