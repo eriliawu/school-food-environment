@@ -373,6 +373,7 @@ bys nearestOutlet_sch: sum age zbmi if $sample & year==2013
 tab nearestOutlet if $sample & year==2013
 * distance, overall and by nearest outlet type
 sum nearestDist_sch if $sample & year==2013
+tab nearestGroup if $sample & year==2013
 eststo clear
 estpost tabstat nearestDist_sch if $sample & year==2013, ///
 	by(nearestOutlet) stats(mean sd count)
@@ -386,7 +387,6 @@ estpost tabstat nearestDist_sch if $sample & nearestDist_sch>=1320 & ///
 	nearestDist_sch<=2640 & year==2013, by(nearestOutlet) stats(mean sd count)
 esttab using raw-tables\tables_newdata.rtf, append title("table2-0.25-0.5") ///
 	cells("mean(fmt(%12.0f)) sd(fmt(%12.0f)) count(fmt(%12.0f))") 
-tab nearestGroup if $sample & year==2013
 }
 .
 
@@ -528,8 +528,7 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 }
 .
 
-{ //fill up boroct2010 from exsiting dataset
-/* 
+{ //fill up boroct2010 from exsiting dataset 
 merge 1:1 newid year using "S:\Personal\hw1220\FF free zone\temp.dta"
 replace boroct2010=boroct2010_new if missing(boroct2010) & x==x_new & y==y_new ///
 	& !missing(boroct2010_new)
@@ -540,7 +539,9 @@ foreach var in x y boroct2010 {
 gen boroct_1=substr(boroct2010, 1, 5)
 gen boroct_2=substr(boroct2010, -2, 2)
 replace boroct2010 = boroct_1 + boroct_2
-drop *_new
-*/ }
+drop *_new _merge boroct_*
+compress
+save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
+ }
 .
 
