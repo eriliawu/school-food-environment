@@ -446,11 +446,11 @@ esttab using raw-tables\tables_newdata.rtf, append nogaps title("table3-95CI-est
 * table 4
 {
 eststo clear
-quietly eststo: areg obese b2.nearestGroup $demo $tenblocks ///
+quietly eststo: areg obese b2.nearestGroup $demo ///
 	if $sample, robust absorb(boroct2010)
 eststo: margins i.nearestGroup, post
-esttab using main_tables.rtf, append nogaps title("table4 london") b(3) se(3)
-esttab using main_tables_margins_estimates.csv, append nogaps title("table4 london") ci(10) b(10)
+esttab using raw-tables\tables_newdata.rtf, append nogaps title("table4-london") b(3) se(3)
+esttab using raw-tables\tables_newdata.csv, append nogaps title("table4-london-CI") ci(10) b(10)
 }
 .
 
@@ -460,12 +460,12 @@ esttab using main_tables_margins_estimates.csv, append nogaps title("table4 lond
 eststo clear
 forvalues i=0/1 {
 	quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-		$demo  if $sample & female==`i', robust absorb(boroct2010)
+		$demo if $sample & female==`i', robust absorb(boroct2010)
 	quietly eststo: margins i.nearestOutlet_sch, post
 }
 .
-esttab using supp_table.rtf, replace b(3) se(3) nogaps title("stratify by gender")
-esttab using raw-tables\supp_table.rtf, append b(3) ci(3) nogaps title("stratify by gender, CI")
+esttab using raw-tables\tables_newdata.rtf, replace b(3) se(3) nogaps title("stratify by gender")
+esttab using raw-tables\main_tables_margins_estimates.csv, replace b(3) ci(3) nogaps title("stratify by gender, CI")
 }
 .
 
@@ -474,13 +474,12 @@ esttab using raw-tables\supp_table.rtf, append b(3) ci(3) nogaps title("stratify
 eststo clear
 forvalues i=2/5 {
 	quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-		female poorever native sped engathome age i.graden i.year  ///
-		if $sample & ethnic==`i', robust absorb(boroct2010)
+		$demo if $sample & ethnic==`i', robust absorb(boroct2010)
 	quietly eststo: margins i.nearestOutlet_sch, post
 }
 .
-esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by race")
-esttab using raw-tables\supp_table.rtf, append b(3) ci(3) nogaps title("stratify by race, CI")
+esttab using raw-tables\tables_newdata.rtf, append b(3) se(3) nogaps title("stratify by race")
+esttab using raw-tables\main_tables_margins_estimates.csv, append b(3) ci(3) nogaps title("stratify by race, CI")
 }
 .
 
@@ -493,8 +492,8 @@ forvalues i=1/5 {
 	quietly eststo: margins i.nearestOutlet_sch, post
 }
 .
-esttab using supp_table.rtf, append b(3) se(3) nogaps title("stratify by boro")
-esttab using supp_table.rtf, append b(3) ci(3) nogaps title("stratify by boro, CI")
+esttab using raw-tables\tables_newdata.rtf, append b(3) se(3) nogaps title("stratify by boro")
+esttab using raw-tables\main_tables_margins_estimates.csv, append b(3) ci(3) nogaps title("stratify by boro, CI")
 }
 .
 
