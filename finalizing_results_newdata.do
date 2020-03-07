@@ -1,9 +1,10 @@
-clear all
+ *clear all
 set more off
 set showbaselevels on
 
 use "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", clear
-cd "C:\Users\wue04\Box Sync\school-food-env\school-food-environment"
+cd "C:\Users\wue04\OneDrive - NYU Langone Health\school-food-env\school-food-environment"
+
 
 ************* derive sample ****************************************************
 ************* run regressions **************************************************
@@ -53,6 +54,66 @@ unique(newid) if $start_sample & nearestOutlet==5 //82467
 unique(newid) if $start_sample & nearestDist_sch>2640 //49731
 * not being in continuously operated schools
 unique(newid) if $start_sample & continuous!=1 //98263
+
+** assess overlap in missing data categories
+{
+* address + demographic data
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) ///
+	& (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) //3364
+* address + bmi
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) & missing(obese) //40596
+* address + <0.5 miles of border
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) & (dist<2640|dist_sch<2640) //1268
+* address + multiple nearest outlets
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) & nearestOutlet==5 //3313
+* address + no outlet within 0.5 miles
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) & nearestDist_sch>2640 //38552
+* address + not continuously operated schools
+unique(newid) if $start_sample & (missing(x)|missing(x_sch)) & continuous!=1 //23237
+* demographic + height/weight/height
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) & missing(obese) //7843
+* demographic + <0.5 miles of border
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) & (dist<2640|dist_sch<2640) //713
+* demo + multiple outlets
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) & nearestOutlet==5 //1561
+* demo + no outlet in 0.5 miles
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) & nearestDist_sch>2640 //1580
+* demo + not continuously operated schools
+unique(newid) if $start_sample & (missing(grade)|missing(ethnic)| ///
+	missing(sped)|missing(native)|missing(female)|missing(eng_home)| ///
+	missing(age)|missing(poor)) & continuous!=1 //3571
+* height/weight + <0.5 miles from border
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & (dist<2640|dist_sch<2640) //25934
+* height/weight + multiple outlets
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & nearestOutlet==5 //5943
+* height/weight + no outlet in 0.5 miles
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & nearestDist_sch>2640 //1198
+* height/weight + not continuous school
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & continuous!=1 //1945
+* <0.5 from border + multiple outlets
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & nearestOutlet==5 //5943
+* <0.5 from border + no outlet in 0.5 miles
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & nearestDist_sch>2640 //1198
+* <0.5 from border + not continuous school
+unique(newid) if $start_sample & (dist<2640|dist_sch<2640) & continuous!=1 //1945
+* multiple outlets + no outlet in 0.5 miles
+unique(newid) if $start_sample & nearestOutlet==5 & nearestDist_sch>2640 // 5091
+* multiple outlets + not continuous school
+unique(newid) if $start_sample & nearestOutlet==5  & continuous!=1 //11280
+* no outlet in 0.5 miles + not continuous school
+unique(newid) if $start_sample & nearestDist_sch>2640 & continuous!=1 //17666
+}
+
 * sample
 unique(newid) if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 & continuous==1 ///
@@ -72,12 +133,14 @@ global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4
 sum age if $sample
+unique(newid) if $sample
 tab nearestOutlet if $sample
 
 ********************************************************************************
 *** analytical section
 *** summary stats and regression
 global demo b5.ethnic female poor native sped eng_home age i.grade i.year
+global house i.bldg_type nycha
 
 ********************************************************************************
 * summary stats
@@ -279,6 +342,7 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 * include not continuously operated schools
 * exclude housing variables
 ********************************************************************************
+{
 *** derive sample
 * with address data, home and school
 * student level demo data
@@ -286,7 +350,6 @@ esttab using data\supp_table_boro.csv, replace b(10) ci(10) nogaps title("strati
 * weight data
 * further from border, 0.5 mile, home and school
 * districts 1-32 schools only
-* only schools continuously operated from 09-12
 
 *** data we started off with
 ** high schools only
@@ -337,7 +400,6 @@ count if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640 & nearestOutlet<=4 ///
 	& !missing(boroct2010) //821,481
-
 global sample level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
 	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
@@ -351,6 +413,7 @@ tab nearestOutlet if $sample
 *** analytical section
 *** summary stats and regression
 global demo b5.ethnic female poor native sped eng_home age i.grade i.year
+global house i.bldg_type nycha
 
 ********************************************************************************
 * summary stats
@@ -418,14 +481,34 @@ drop outlet*
 }
 .
 
+* sensitivity check
+{
+eststo clear
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) //main model
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if level==3 & !missing(x) & !missing(x_sch) & !missing(obese) ///
+	& dist>=2640 & dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & !missing(FFOR_sch) & nearestDist_sch<=2640  ///
+	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
+esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps title("sensitivity-check") b(3) se(3) 
+}
+.
+
 * figure 1, export data to .csv
 eststo clear
 quietly: areg obese c.nearestDistk_sch##b1.nearestOutlet_sch $demo ///
 	 if $sample, robust absorb(boroct2010)
 quietly eststo: margins i.nearestOutlet_sch, at(nearestDistk_sch=(0(264)2640)) post
 esttab using data\fig1.csv, replace b(10) ci(10) nogaps title("fig1")
-}
-.
 
 * following table 3
 * compare point estimates on diff points along the lines
@@ -546,4 +629,69 @@ compress
 save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", replace
  }
 .
+}
+.
 
+************* R&R **************************************************************
+************* relax sample restrictions ****************************************
+************** drop housing/not continous schools/food env vars ****************
+{
+*** sample
+* school address, demographics data, bmi data
+* school within half a mile from city border
+* no outlets within half a mile of school
+count if level==3 & district>=1 & district<=32 //1,435,257
+count if level==3 & !missing(x_sch) & !missing(obese) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
+	& !missing(boroct2010) //840,158
+count if level==3 & !missing(x_sch) & !missing(obese) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 ///
+	& !missing(boroct2010) //942,757
+global sample level==3 & !missing(x_sch) & !missing(obese) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
+	& !missing(boroct2010)
+
+*** regressions
+global demo b5.ethnic female poor native sped eng_home age i.grade i.year
+
+* create time lag, t-1
+sort newid year
+by newid: gen nearestDistk_sch1 = nearestDistk_sch[_n-1]
+by newid: gen nearestOutlet_sch1 = nearestOutlet_sch[_n-1]
+{
+eststo clear
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) //main model
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
+quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if level==3 & !missing(x_sch) & !missing(obese) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 ///
+	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
+quietly eststo: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 $demo ///
+	if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model
+esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
+	title("sensitivity-check-new-sample") b(3) se(3) 
+}
+.
+
+
+
+}
+.
