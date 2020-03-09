@@ -639,8 +639,8 @@ save "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", repla
 *** sample
 * school address, demographics data, bmi data
 * school within half a mile from city border
+* multiple outlets as nearest
 * no outlets within half a mile of school
-count if level==3 & district>=1 & district<=32 //1,435,257
 count if level==3 & !missing(x_sch) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
@@ -659,6 +659,78 @@ global sample level==3 & !missing(x_sch) & !missing(obese) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
 	& !missing(boroct2010)
+
+*** derive sample
+{
+* start, grade 9-12, districts 1-32
+count if level==3 & district>=1 & district<=32 //1,435,103
+* has home and school address
+count if level==3 & district>=1 & district<=32 & (missing(x_sch)|missing(x) ///
+	|missing(boroct2010)) //136,440
+* has demographics data
+count if level==3 & district>=1 & district<=32 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor)) //27,254
+* has bmi data
+count if level==3 & district>=1 & district<=32 & missing(obese) //374,813
+* school not within half a mile from border
+count if level==3 & district>=1 & district<=32 & dist_sch<2640 //28,682
+* multiple outlets as nearest 
+count if level==3 & district>=1 & district<=32 & nearestOutlet_sch==5 //143,674
+* no outlets within half a mile from school 
+count if level==3 & district>=1 & district<=32 & nearestDist_sch>2640 //89,756
+}
+.
+
+* overlap in sample missing data
+{
+* address + demographic
+count if level==3 & district<=32 & district>=1 & (missing(x)|missing(x_sch)) & ///
+	(missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor))
+* address + bmi
+count if level==3 & district<=32 & district>=1 & (missing(x)|missing(x_sch)) & missing(obese)
+* address + school <0.5 miles from border 
+count if level==3 & district<=32 & district>=1 & (missing(x)|missing(x_sch)) & dist_sch<2640
+* address + multiple outlets
+count if level==3 & district<=32 & district>=1 & (missing(x)|missing(x_sch)) & nearestOutlet_sch==5
+* address + no outlets within 0.5 miles from school 
+count if level==3 & district<=32 & district>=1 & (missing(x)|missing(x_sch))  & nearestDist_sch>2640
+* demo + bmi
+count if level==3 & district<=32 & district>=1 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor)) & missing(obese)
+* demo + school <0.5 miles from border 
+count if level==3 & district<=32 & district>=1 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor)) & dist_sch<2640
+* demo + multiple outlets
+count if level==3 & district<=32 & district>=1 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor)) & nearestOutlet_sch==5
+* demo + no outlets within 0.5 miles from school
+count if level==3 & district<=32 & district>=1 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor)) & nearestDist_sch>2640
+* bmi + school <0.5 miles from border 
+count if level==3 & district<=32 & district>=1 & missing(obese) & dist_sch<2640
+* bmi+ multiple outlets 
+count if level==3 & district<=32 & district>=1 & missing(obese) & nearestOutlet_sch==5
+* bmi + no outlets within 0.5 miles from school
+count if level==3 & district<=32 & district>=1 & missing(obese) & nearestDist_sch>2640
+* school <0.5 miles from border + multiple outlets
+count if level==3 & district<=32 & district>=1 & dist_sch<2640 & nearestOutlet_sch==5
+* school <0.5 miles from border + no outlets within 0.5 miles from school
+count if level==3 & district<=32 & district>=1 & dist_sch<2640 & nearestDist_sch>2640
+* multiple outlets + no outlets within 0.5 miles from school 
+count if level==3 & district<=32 & district>=1 & nearestOutlet_sch==5 & nearestDist_sch>2640
+
+* check demographic makeup in students with missing bmi
+tab ethnic if level==3 & district<=32 & district>=1 & missing(obese)
+tab ethnic if level==3 & district<=32 & district>=1
+}
+.
 
 *** regressions
 global demo b5.ethnic female poor native sped eng_home age i.grade i.year
