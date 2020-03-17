@@ -136,7 +136,23 @@ esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
 }
 .
 
+********************************************************************************
+******************************** multiple imputation ***************************
+********************************************************************************
+*** examine missingness in variables
+mdesc zbmi obese boroct2010 nearestDist_sch x_sch dist_sch ethnic sped native ///
+	female eng_home age poor nearestOutlet_sch if level==3 & district<=32 & district>=1
 
+mi set mlong
+
+* patterns of missing data
+mi misstable patterns zbmi boroct2010 nearestDist_sch dist_sch ethnic ///
+	eng_home if level==3 & district<=32 & district>=1
+	
+* how often do newid have multiple years of records but no bmi data
+duplicates tag newid if level==3 & district<=32 & district>=1, gen(dup)
+duplicates tag newid if level==3 & district<=32 & district>=1 & !missing(bmi), gen(dup_bmi)
+br newid year dup*
 
 }
 .
