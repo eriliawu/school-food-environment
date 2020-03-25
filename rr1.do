@@ -1,9 +1,9 @@
- *clear all
+clear all
 set more off
 set showbaselevels on
 
-use "S:\Personal\hw1220\FF free zone\food-environment-reconstructed.dta", clear
 cd "C:\Users\wue04\OneDrive - NYU Langone Health\school-food-env\school-food-environment"
+use data/food-environment-reconstructed.dta, clear
 
 ************* R&R **************************************************************
 ************* relax sample restrictions ****************************************
@@ -140,19 +140,54 @@ esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
 ******************************** multiple imputation ***************************
 ********************************************************************************
 *** examine missingness in variables
-mdesc zbmi obese boroct2010 nearestDist_sch x_sch dist_sch ethnic sped native ///
-	female eng_home age poor nearestOutlet_sch if level==3 & district<=32 & district>=1
+mdesc zbmi bds x_sch dist_sch ethnic sped native ///
+	female eng_home age poor nycha bldg_type if level==3 & district<=32 & district>=1
 
-mi set mlong
+*** reshape data from long to wide
+keep newid year bds zbmi obese ethnic boroct2010 nycha
+reshape wide bds zbmi obese boroct2010 nycha, i(newid) j(year)
+	
+* create indicator for every on nycha, lep and sped
+foreach var in nycha lep sped eng_home {
+	egen `var' = rowmax(`var'*) if `var'2009!=.|`var'2010!=.|`var'2011!=.|`var'2012!=.|`var'2013!=.
+}
+.
 
 * patterns of missing data
-mi misstable patterns zbmi boroct2010 nearestDist_sch dist_sch ethnic ///
-	eng_home if level==3 & district<=32 & district>=1
-	
-* how often do newid have multiple years of records but no bmi data
-duplicates tag newid if level==3 & district<=32 & district>=1, gen(dup)
-duplicates tag newid if level==3 & district<=32 & district>=1 & !missing(bmi), gen(dup_bmi)
-br newid year dup*
+mi set mlong
+mi misstable patterns zbmi ethnic native ///
+	female age if level==3 & district<=32 & district>=1
+
+* check num of students who never had bmi taken
+{
+sum zbmi 
+by newid: egen min_bmi = min(zbmi)
+gen no_bmi = (min_bmi==.)
+drop min_bmi
+codebook no_bmi if no_bmi==1 & level==3 & district<=32 & district>=1 //122,786
+unique(newid) if no_bmi==1 & level==3 & district<=32 & district>=1 //75,418
+}
+.
+
+*** imputation prepare
+mi register imputed obese* zbmi* nycha poor
+compress
+
+* imputation
+* predictor: other years of BMI, ever in nycha, on sped/lep, poor, eng_home
+* predict by ethnicity, cluster by bds
+mi xtset, clear
+mi impute chained (logit) obese* nycha = poor, by(ethnic) add(5) replace rseed(5) force noisily
+
+
+*mi impute chained (logit) obese* nycha (regress) zbmi*, by(ethnic) add(5) replace rseed(5) force noisily
+
+mi estimate: areg zbmi c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) //main model
+
+help mi impute
+
+
 
 }
 .
