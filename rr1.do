@@ -143,20 +143,15 @@ esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
 mdesc zbmi bds x_sch dist_sch ethnic sped native ///
 	female eng_home age poor nycha bldg_type if level==3 & district<=32 & district>=1
 
-*** reshape data from long to wide
-keep newid year bds zbmi obese ethnic boroct2010 nycha
-reshape wide bds zbmi obese boroct2010 nycha, i(newid) j(year)
-	
-* create indicator for every on nycha, lep and sped
-foreach var in nycha lep sped eng_home {
-	egen `var' = rowmax(`var'*) if `var'2009!=.|`var'2010!=.|`var'2011!=.|`var'2012!=.|`var'2013!=.
-}
-.
-
 * patterns of missing data
 mi set mlong
 mi misstable patterns zbmi ethnic native ///
 	female age if level==3 & district<=32 & district>=1
+
+*** reshape data from long to wide
+*keep newid year bds obese ethnic boroct2010 nycha poor
+mi reshape wide grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch bbl_sch weight_kg height_cm bmi zbmi sevobese obese overweight underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
+	
 
 * check num of students who never had bmi taken
 {
@@ -170,22 +165,21 @@ unique(newid) if no_bmi==1 & level==3 & district<=32 & district>=1 //75,418
 .
 
 *** imputation prepare
-mi register imputed obese* zbmi* nycha poor
+mi register imputed obese* 
 compress
 
 * imputation
 * predictor: other years of BMI, ever in nycha, on sped/lep, poor, eng_home
 * predict by ethnicity, cluster by bds
 mi xtset, clear
-mi impute chained (logit) obese* nycha = poor, by(ethnic) add(5) replace rseed(5) force noisily
+mi impute chained (logit) obese* = nycha* poor, by(ethnic) add(5) replace rseed(5) force //15:23
 
+* reshape back to long data
+mi reshape long grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch weight_kg height_cm bmi zbmi obese overweight sevobese underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestDistk_sch nearestOutlet_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
 
-*mi impute chained (logit) obese* nycha (regress) zbmi*, by(ethnic) add(5) replace rseed(5) force noisily
-
-mi estimate: areg zbmi c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+mi estimate: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
 	if $sample, robust absorb(boroct2010) //main model
 
-help mi impute
 
 
 
