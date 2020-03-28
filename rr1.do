@@ -169,16 +169,40 @@ mi register imputed obese*
 compress
 
 * imputation
-* predictor: other years of BMI, ever in nycha, on sped/lep, poor, eng_home
-* predict by ethnicity, cluster by bds
+* predictor: other years of BMI, nycha, poor
+* predict by ethnicity
 mi xtset, clear
-mi impute chained (logit) obese* = nycha* poor, by(ethnic) add(5) replace rseed(5) force //15:23
+mi impute chained (logit) obese* = nycha* poor, by(ethnic) add(5) replace rseed(5) force
 
 * reshape back to long data
 mi reshape long grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch weight_kg height_cm bmi zbmi obese overweight sevobese underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestDistk_sch nearestOutlet_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
 
 mi estimate: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
 	if $sample, robust absorb(boroct2010) //main model
+{
+eststo clear
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) //main model
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if level==3 & !missing(x_sch) & !missing(obese) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 ///
+	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 $demo ///
+	if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model
+esttab using raw-tables\tables_rr_sensitivity.rtf, append nogaps ///
+	title("sensitivity-check-mi") b(3) se(3) 
+}
+.
+
 
 
 
