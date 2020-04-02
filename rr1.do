@@ -37,6 +37,7 @@ global sample level==3 & !missing(x_sch) & !missing(obese) ///
 {
 * start, grade 9-12, districts 1-32
 count if level==3 & district>=1 & district<=32 //1,435,103
+unique(newid) if level==3 & district>=1 & district<=32
 * has home and school address
 count if level==3 & district>=1 & district<=32 & (missing(x_sch)|missing(x) ///
 	|missing(boroct2010)) //136,440
@@ -177,31 +178,76 @@ mi impute chained (logit) obese* = nycha* poor, by(ethnic) add(5) replace rseed(
 * reshape back to long data
 mi reshape long grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch weight_kg height_cm bmi zbmi obese overweight sevobese underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestDistk_sch nearestOutlet_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
 
-mi estimate: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) //main model
-{
+compress
+save data\food-environment-reconstructed-mi.dta, replace
+
+{ // sensitivity checks
 eststo clear
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) //main model
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if level==3 & !missing(x_sch) & !missing(obese) ///
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) //main model
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if level==3 & !missing(x_sch) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & nearestDist_sch<=2640 ///
 	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 $demo ///
-	if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 ///
+	$demo if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model, t-1
 esttab using raw-tables\tables_rr_sensitivity.rtf, append nogaps ///
 	title("sensitivity-check-mi") b(3) se(3) 
 }
 .
+
+*table 3, coefficients and predicted likelihood
+*supp tables, by borough, gender, race/ethnicity, more than 1 outlet
+*all cluster at student level
+eststo clear
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) cluster(newid) //main model, cluster newid
+quietly eststo: mi estimate, post: margins i.nearestOutlet_sch, post //table 3, col 3 predicted likelihood
+esttab using raw-tables\tables_rr.rtf, replace nogaps title("table3 main model") b(3) se(3) 
+
+*test joint significance in model 2
+*but test the joint significance pair wise: FF+dist*FF, BOD+dist*BOD, etc.
+tab nearestOutlet_sch, gen(outlet)
+mi estimate: areg obese c.nearestAnyall1000_sch##outlet1 ///
+	c.nearestAnyall1000_sch##outlet3 c.nearestAnyall1000_sch##outlet4 $demo2 ///
+	$house if $sample, robust absorb(boroct2010) cluster(newid)
+testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet1 //p=0.0001
+testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet2 //p=0.0003
+testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet3 //p=0.0009
+testparm nearestAnyall1000_sch c.nearestAnyall1000_sch#outlet4 //p=0.0014
+drop outlet*
+
+* following table 3
+* compare point estimates on diff points along the lines
+* compare diff points on the same line, and same dist on diff lines
+set matsize 1000
+quietly: mi estimate, post: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample, robust absorb(boroct2010) cluster(newid)
+eststo: mi estimate, post: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) pwcompare post //copy the tablee
+quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample, robust absorb(boroct2010) 
+margins r.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) //copy the table
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
