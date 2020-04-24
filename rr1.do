@@ -25,36 +25,63 @@ count if level==3 & !missing(x_sch) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & nearestDist_sch<=2640 ///
-	& !missing(boroct2010) //942,757
-global sample level==3 & !missing(x_sch) ///
+	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
+	& !missing(boroct2010) //
+global sample level==3 & !missing(x_sch) & !missing(x) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
 	& !missing(boroct2010)
+*count if $sample
 
-*** derive sample
+*** derive sample, overall and only AY 2013
 {
 * start, grade 9-12, districts 1-32
-unique(newid) if level==3 & district>=1 & district<=32 //1,435,103
+count if level==3 & district>=1 & district<=32 //1,435,103
 unique(newid) if level==3 & district>=1 & district<=32
-* has home  address
-unique(newid) if level==3 & district>=1 & district<=32 & (missing(x)|missing(boroct2010)) //136,440
-* has school  address
-unique(newid) if level==3 & district>=1 & district<=32 & missing(x_sch)
+* has home address
+count if level==3 & district>=1 & district<=32 & (missing(x)|missing(boroct2010)) //78,511
+* has school address
+count if level==3 & district>=1 & district<=32 & missing(x_sch) //64,582
 * has demographics data
-unique(newid) if level==3 & district>=1 & district<=32 & (missing(grade)|missing(ethnic) ///
+count if level==3 & district>=1 & district<=32 & (missing(grade)|missing(ethnic) ///
 	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
 	|missing(age)|missing(poor)) //27,254
 * has bmi data
-unique(newid) if level==3 & district>=1 & district<=32 & missing(obese) //374,813
+count if level==3 & district>=1 & district<=32 & missing(obese) //374,813
 * school not within half a mile from border
-unique(newid) if level==3 & district>=1 & district<=32 & dist_sch<2640 //28,682
+count if level==3 & district>=1 & district<=32 & dist_sch<2640 //28,682
 * multiple outlets as nearest 
-unique(newid) if level==3 & district>=1 & district<=32 & nearestOutlet_sch==5 //143,674
+count if level==3 & district>=1 & district<=32 & nearestOutlet_sch==5 //143,674
 * no outlets within half a mile from school 
-unique(newid) if level==3 & district>=1 & district<=32 & nearestDist_sch>2640 //89,756
+count if level==3 & district>=1 & district<=32 & nearestDist_sch>2640 //89,756
+
+* AY 2013
+count if level==3 & district>=1 & district<=32 & year==2013
+* has home address
+count if level==3 & district>=1 & district<=32 & (missing(x)|missing(boroct2010))  & year==2013
+* has school address
+count if level==3 & district>=1 & district<=32 & missing(x_sch)  & year==2013
+* has demographics data
+count if level==3 & district>=1 & district<=32 & (missing(grade)|missing(ethnic) ///
+	|missing(sped)|missing(native)|missing(female)|missing(eng_home) ///
+	|missing(age)|missing(poor))  & year==2013
+* has bmi data
+count if level==3 & district>=1 & district<=32 & missing(obese)  & year==2013
+* school not within half a mile from border
+count if level==3 & district>=1 & district<=32 & dist_sch<2640  & year==2013
+* multiple outlets as nearest 
+count if level==3 & district>=1 & district<=32 & nearestOutlet_sch==5  & year==2013
+* no outlets within half a mile from school 
+count if level==3 & district>=1 & district<=32 & nearestDist_sch>2640  & year==2013
+* sample
+count if level==3 & !missing(x_sch) & !missing(obese) & !missing(x) ///
+	& dist_sch>=2640 & district>=1 & district<=32 ///
+	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
+	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
+	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
+	& !missing(boroct2010) & year==2013
 }
 .
 
@@ -183,6 +210,47 @@ unique(bds) if level==3 & nearestOutlet_sch==5 & nearestDist_sch>2640
 }
 .
 
+*** number of student-year obs with missing bmi
+count if level==3 & district>=1 & district<=32 & missing(obese)
+
+* sample size per year, pre-/post-sample restrictions, unique newid and N
+forvalues i=2009/2013 {
+	*unique(newid) if level==3 & district>=1 & district<=32 & year==`i'
+	*unique(newid) if $sample & year==`i'
+	*count if level==3 & district>=1 & district<=32 & year==`i'
+	count if $sample & year==`i'
+	*count if level==3 & district>=1 & district<=32 & missing(obese) & year==`i'
+}
+.
+
+* check different combos for having multiple outlets as nearest, 2013
+{
+tab nearestOutlet_sch
+tab nearestOutlet_sch if level==3 & district>=1 & district<=32 & year==2013
+
+count if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch) //FFOR=BOD
+count if level==3 & district>=1 & district<=32 & FFOR_sch==WS_sch & FFOR_sch<BOD_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch) //FFOR=WS 
+count if level==3 & district>=1 & district<=32 & FFOR_sch==C6P_sch & FFOR_sch<BOD_sch & FFOR_sch<WS_sch & year==2013 & !missing(FFOR_sch) //FFOR=C6P
+count if level==3 & district>=1 & district<=32 & BOD_sch==WS_sch & BOD_sch<FFOR_sch & BOD_sch<C6P_sch & year==2013 & !missing(FFOR_sch) //BOD=WS
+count if level==3 & district>=1 & district<=32 & BOD_sch==C6P_sch & BOD_sch<FFOR_sch & BOD_sch<WS_sch & year==2013 & !missing(FFOR_sch) //BOD<C6P
+count if level==3 & district>=1 & district<=32 & WS_sch==C6P_sch & WS_sch<FFOR_sch & WS_sch<BOD_sch & year==2013 & !missing(FFOR_sch) //WS=C6P
+count if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch==WS_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch) //FFOR=BOD=WS
+count if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch==C6P_sch & FFOR_sch<WS_sch & year==2013 & !missing(FFOR_sch) //FFOR=BOD=C6P
+count if level==3 & district>=1 & district<=32 & FFOR_sch==WS_sch & FFOR_sch==C6P_sch & FFOR_sch<BOD_sch & year==2013 & !missing(FFOR_sch) //FFOR=WS=C6P
+count if level==3 & district>=1 & district<=32 & C6P_sch==BOD_sch & C6P_sch==WS_sch & C6P_sch<FFOR_sch & year==2013 & !missing(FFOR_sch) //BOD=WS=C6P
+count if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch==WS_sch & FFOR_sch==C6P_sch & year==2013 & !missing(FFOR_sch) //FFOR=BOD=WS=C6P
+
+* examine the students/schools with both FFOR and WS as nearest 
+duplicates drop bds year FFOR_sch WS_sch if level==3 & district>=1 & district<=32 & FFOR_sch==WS_sch & FFOR_sch<BOD_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch), force
+tab bds if level==3 & district>=1 & district<=32 & FFOR_sch==WS_sch & FFOR_sch<BOD_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch), sort
+br bds FFORname_sch WSname_sch WS_sch if level==3 & district>=1 & district<=32 & FFOR_sch==WS_sch & FFOR_sch<BOD_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch)
+
+* examine the students/schools with both FFOR and BOD as nearest 
+tab bds if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch)
+duplicates drop bds year FFOR_sch WS_sch if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch), force
+br bds FFORname_sch BODname_sch FFOR_sch if level==3 & district>=1 & district<=32 & FFOR_sch==BOD_sch & FFOR_sch<WS_sch & FFOR_sch<C6P_sch & year==2013 & !missing(FFOR_sch)
+}
+.
 
 *** regressions
 global demo b5.ethnic female poor native sped eng_home age i.grade i.year
@@ -219,26 +287,37 @@ esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
 ******************************** multiple imputation ***************************
 ********************************************************************************
 *** examine missingness in variables
-mdesc zbmi bds x_sch dist_sch ethnic sped native ///
-	female eng_home age poor nycha bldg_type if level==3 & district<=32 & district>=1
+mdesc obese ethnic sped poor nycha bldg_type if level==3 & district<=32 & district>=1
+
+* look at possible predictors, examine missingness
+*keep newid year obese nycha level district
+*reshape wide obese nycha level district, i(newid) j(year)
 
 * patterns of missing data
 mi set mlong
-mi misstable patterns zbmi ethnic native ///
-	female age if level==3 & district<=32 & district>=1
+mi misstable patterns obese* nycha* if (level2009==3&district2009<=32&district2009>=1)|(level2010==3&district2010<=32&district2010>=1)|(level2011==3&district2011<=32&district2011>=1)|(level2012==3&district2012<=32&district2012>=1)|(level2013==3&district2013<=32&district2013>=1), frequency
 
 *** reshape data from long to wide
 *keep newid year bds obese ethnic boroct2010 nycha poor
 mi reshape wide grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch bbl_sch weight_kg height_cm bmi zbmi sevobese obese overweight underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
 
-* check num of students who never had bmi taken
+* check num of students who never had bmi taken, or nycha status
 {
-sum zbmi 
-bys newid: egen min_bmi = min(zbmi)
-gen no_bmi = (min_bmi==.)
-drop min_bmi
-codebook no_bmi if no_bmi==1 & level==3 & district<=32 & district>=1 //122,786
-unique(newid) if no_bmi==1 & level==3 & district<=32 & district>=1 //75,418
+sum obese
+bys newid: egen min_obese = min(obese)
+gen no_obese = (min_obese==.)
+drop min_obese
+codebook no_obese if no_obese==1 & level==3 & district<=32 & district>=1 //122,786
+unique(newid) if no_obese==1 & level==3 & district<=32 & district>=1 //75,418
+
+sum nycha
+bys newid: egen min_nycha = min(nycha)
+gen no_nycha = (min_nycha==.)
+drop min_nycha
+codebook no_nycha if no_nycha==1 & level==3 & district<=32 & district>=1 //93,303
+unique(newid) if no_nycha==1 & level==3 & district<=32 & district>=1 //49,596
+
+unique(newid) if no_obese==1 & no_nycha==1 & level==3 & district<=32 & district>=1 //12,322, 16,038
 }
 .
 
