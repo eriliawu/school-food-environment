@@ -2,6 +2,9 @@ clear all
 set more off
 set showbaselevels on
 *ssc install mimrgns
+*ssc install dataex
+net install parallel,  from(https://raw.github.com/gvegayon/parallel/stable/) replace
+mata mata mlib index
 
 cd "C:\Users\wue04\OneDrive - NYU Langone Health\school-food-env\school-food-environment"
 use data/food-environment-reconstructed.dta, clear
@@ -21,7 +24,7 @@ unique(newid) if level==3 & !missing(x_sch) & !missing(obese) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
 	& !missing(poor) & nearestDist_sch<=2640 & nearestOutlet_sch<=4 ///
 	& !missing(boroct2010) //840,158
-count if level==3 & !missing(x_sch) & !missing(obese) ///
+count if level==3 & !missing(x_sch) & !missing(x) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
@@ -217,7 +220,7 @@ count if level==3 & district>=1 & district<=32 & missing(obese)
 forvalues i=2009/2013 {
 	*unique(newid) if level==3 & district>=1 & district<=32 & year==`i'
 	*unique(newid) if $sample & year==`i'
-	*count if level==3 & district>=1 & district<=32 & year==`i'
+	count if level==3 & district>=1 & district<=32 & year==`i'
 	count if $sample & year==`i'
 	*count if level==3 & district>=1 & district<=32 & missing(obese) & year==`i'
 }
@@ -259,6 +262,7 @@ global demo b5.ethnic female poor native sped eng_home age i.grade i.year
 sort newid year
 by newid: gen nearestDistk_sch1 = nearestDistk_sch[_n-1]
 by newid: gen nearestOutlet_sch1 = nearestOutlet_sch[_n-1]
+
 {
 eststo clear
 quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
@@ -289,18 +293,6 @@ esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
 *** examine missingness in variables
 mdesc obese ethnic sped poor nycha bldg_type if level==3 & district<=32 & district>=1
 
-* look at possible predictors, examine missingness
-*keep newid year obese nycha level district
-*reshape wide obese nycha level district, i(newid) j(year)
-
-* patterns of missing data
-mi set mlong
-mi misstable patterns obese* nycha* if (level2009==3&district2009<=32&district2009>=1)|(level2010==3&district2010<=32&district2010>=1)|(level2011==3&district2011<=32&district2011>=1)|(level2012==3&district2012<=32&district2012>=1)|(level2013==3&district2013<=32&district2013>=1), frequency
-
-*** reshape data from long to wide
-*keep newid year bds obese ethnic boroct2010 nycha poor
-mi reshape wide grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch bbl_sch weight_kg height_cm bmi zbmi sevobese obese overweight underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
-
 * check num of students who never had bmi taken, or nycha status
 {
 sum obese
@@ -321,21 +313,62 @@ unique(newid) if no_obese==1 & no_nycha==1 & level==3 & district<=32 & district>
 }
 .
 
+* patterns of missing data
+mi set mlong
+
+*** reshape data from long to wide
+drop x y lon lat continuous x_sch y_sch lat_sch lon_sch bbl* weight_kg height_cm bmi sevobese underweight
+mi reshape wide grade age lep sped dist boro bds district level dist_sch boro_sch  zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
+*** for testing only
+* select 1% of the sample
+sample 1
+
+*** check processors available for parallel
+parallel numprocessors
+parallel initialize 4, f
+
+mi misstable patterns poor sped*
+
+*mi misstable patterns obese* nycha* if (level2009==3&district2009<=32&district2009>=1)|(level2010==3&district2010<=32&district2010>=1)|(level2011==3&district2011<=32&district2011>=1)|(level2012==3&district2012<=32&district2012>=1)|(level2013==3&district2013<=32&district2013>=1), frequency
+
+mi misstable summarize poor sped*
+{ //fill in sped* for the sake of 1% sample testing
+replace poor=1 if missing(poor)
+tab poor
+egen sped_max = rowmax(sped2009 sped2010 sped2011 sped2012 sped2013)
+tab sped_max
+replace sped_max=0 if missing(sped_max)
+forvalues i=2009/2013 {
+	replace sped`i' = sped_max if missing(sped`i')
+}
+drop sped_max
+}
+.
 *** imputation prepare
-mi register imputed obese* 
+mi register imputed obese* ethnic female native age* 
+mi register imputed poor sped*
+*mi register imputed nearestDistk_sch* nearestOutlet_sch* nearestGroup_sch*
+mi register imputed nycha*
+mi register imputed FFOR_sch* BOD_sch* WS_sch* C6P_sch*
 compress
+
+* check collinearity
+_rmcoll obese* ethnic female native eng_home* age* grade* poor sped* nycha* FFOR_sch* BOD_sch* WS_sch* C6P_sch* 
+display r(varlist)
 
 * imputation
-* predictor: other years of BMI, nycha, poor
-* predict by ethnicity
+* predictor: other years of BMI, all covariates in the regression model
 mi xtset, clear
-mi impute chained (logit) obese* = nycha* poor, by(ethnic) add(5) replace rseed(5) force
+timer on 1
+parallel: mi impute chained (logit, augment) obese* female nycha* poor sped* native (mlogit, augment) ethnic (pmm, knn(5)) age* (reg) FFOR_sch* BOD_sch* WS_sch* C6P_sch*, add(5) replace rseed(5) force noisily showcommand
+timer off 1
+timer list 1
 
 * reshape back to long data
-mi reshape long grade age lep sped dist boro bbl x y lat lon bds continuous district level dist_sch x_sch y_sch boro_sch lat_sch lon_sch weight_kg height_cm bmi zbmi obese overweight sevobese underweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestDistk_sch nearestOutlet_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
+mi reshape long grade age lep sped dist boro bds district level dist_sch boro_sch  zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
 
 compress
-save data\food-environment-reconstructed-mi.dta, replace
+save data\food-environment-reconstructed-mi2.dta, replace
 
 { // sensitivity checks
 eststo clear
