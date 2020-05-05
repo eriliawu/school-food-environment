@@ -3,8 +3,8 @@ set more off
 set showbaselevels on
 *ssc install mimrgns
 *ssc install dataex
-net install parallel,  from(https://raw.github.com/gvegayon/parallel/stable/) replace
-mata mata mlib index
+*net install parallel,  from(https://raw.github.com/gvegayon/parallel/stable/) replace
+*mata mata mlib index
 
 cd "C:\Users\wue04\OneDrive - NYU Langone Health\school-food-env\school-food-environment"
 use data/food-environment-reconstructed.dta, clear
@@ -316,56 +316,61 @@ unique(newid) if no_obese==1 & no_nycha==1 & level==3 & district<=32 & district>
 * patterns of missing data
 mi set mlong
 
+* add sped_ever
+bys newid: egen sped_ever = max(sped)
+*br newid year sped sped_ever
+
 *** reshape data from long to wide
-drop x y lon lat continuous x_sch y_sch lat_sch lon_sch bbl* weight_kg height_cm bmi sevobese underweight
-mi reshape wide grade age lep sped dist boro bds district level dist_sch boro_sch  zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
+drop x y lon lat continuous x_sch y_sch lat_sch lon_sch bbl* weight_kg height_cm ///
+	bmi sevobese underweight
+mi reshape wide grade age lep sped dist boro bds district level dist_sch boro_sch ///
+	zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch ///
+		WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch ///
+		nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 ///
+		nearestOutlet_sch1, i(newid) j(year)
 *** for testing only
 * select 1% of the sample
 sample 1
 
 *** check processors available for parallel
-parallel numprocessors
-parallel initialize 4, f
+*parallel numprocessors
+*parallel initialize 4, f
 
-mi misstable patterns poor sped*
+mi misstable patterns poor sped_ever
+mi misstable summarize poor sped_ever
 
-*mi misstable patterns obese* nycha* if (level2009==3&district2009<=32&district2009>=1)|(level2010==3&district2010<=32&district2010>=1)|(level2011==3&district2011<=32&district2011>=1)|(level2012==3&district2012<=32&district2012>=1)|(level2013==3&district2013<=32&district2013>=1), frequency
-
-mi misstable summarize poor sped*
-{ //fill in sped* for the sake of 1% sample testing
-replace poor=1 if missing(poor)
-tab poor
-egen sped_max = rowmax(sped2009 sped2010 sped2011 sped2012 sped2013)
-tab sped_max
-replace sped_max=0 if missing(sped_max)
-forvalues i=2009/2013 {
-	replace sped`i' = sped_max if missing(sped`i')
-}
-drop sped_max
-}
-.
 *** imputation prepare
 mi register imputed obese* ethnic female native age* 
-mi register imputed poor sped*
-*mi register imputed nearestDistk_sch* nearestOutlet_sch* nearestGroup_sch*
-mi register imputed nycha*
+mi register imputed poor sped_ever
+*mi register imputed nearestDistk_sch* nearestOutlet_sch*
+*mi register imputed nycha*
 mi register imputed FFOR_sch* BOD_sch* WS_sch* C6P_sch*
 compress
 
 * check collinearity
-_rmcoll obese* ethnic female native eng_home* age* grade* poor sped* nycha* FFOR_sch* BOD_sch* WS_sch* C6P_sch* 
+_rmcoll obese* ethnic female native age* poor sped_ever FFOR_sch* BOD_sch* WS_sch* C6P_sch*
 display r(varlist)
 
 * imputation
 * predictor: other years of BMI, all covariates in the regression model
 mi xtset, clear
 timer on 1
-parallel: mi impute chained (logit, augment) obese* female nycha* poor sped* native (mlogit, augment) ethnic (pmm, knn(5)) age* (reg) FFOR_sch* BOD_sch* WS_sch* C6P_sch*, add(5) replace rseed(5) force noisily showcommand
+mi impute chained (logit, augment) obese* female poor sped_ever native ///
+	(mlogit, augment) ethnic (reg) FFOR_sch* BOD_sch* WS_sch* C6P_sch* age*, ///
+	add(3) replace rseed(5) force noisily showcommand //20200504, 11:31
 timer off 1
 timer list 1
 
 * reshape back to long data
-mi reshape long grade age lep sped dist boro bds district level dist_sch boro_sch  zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 nearestOutlet_sch1, i(newid) j(year)
+drop sped_ever
+mi reshape long grade age lep sped dist boro bds district level dist_sch boro_sch ///
+	zbmi obese overweight FFOR_sch FFORname_sch BOD_sch BODname_sch WS_sch ///
+	WSname_sch C6P_sch C6Pname_sch eng_home nearestDist_sch nearestOutlet_sch ///
+	nearestDistk_sch boroct2010 bldg_type nycha nearestGroup_sch nearestDistk_sch1 ///
+	nearestOutlet_sch1, i(newid) j(year)
+	
+* fill in new nearestOutlet_sch and nearestDistk_sch
+
 
 compress
 save data\food-environment-reconstructed-mi2.dta, replace
@@ -497,20 +502,117 @@ esttab using raw-tables\tables_rr.rtf, append nogaps ///
 }
 .
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 .
+
+
+/*
+
+Conditional models:
+            ethnic: mlogit ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+              poor: logit poor i.ethnic i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+         sped_ever: logit sped_ever i.ethnic i.poor i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+            female: logit female i.ethnic i.poor i.sped_ever i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+            native: logit native i.ethnic i.poor i.sped_ever i.female age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+           age2013: regress age2013 i.ethnic i.poor i.sped_ever i.female i.native age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+           age2011: regress age2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+           age2012: regress age2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+           age2010: regress age2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+           age2009: regress age2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+      FFOR_sch2012: regress FFOR_sch2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       BOD_sch2012: regress BOD_sch2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+        WS_sch2012: regress WS_sch2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       C6P_sch2012: regress C6P_sch2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 FFOR_sch2013 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+      FFOR_sch2013: regress FFOR_sch2013 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 BOD_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       BOD_sch2013: regress BOD_sch2013 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 WS_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+        WS_sch2013: regress WS_sch2013 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       C6P_sch2013: regress C6P_sch2013 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+      FFOR_sch2011: regress FFOR_sch2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       BOD_sch2011: regress BOD_sch2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+        WS_sch2011: regress WS_sch2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       C6P_sch2011: regress C6P_sch2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+      FFOR_sch2010: regress FFOR_sch2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       BOD_sch2010: regress BOD_sch2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+        WS_sch2010: regress WS_sch2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       C6P_sch2010: regress C6P_sch2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+      FFOR_sch2009: regress FFOR_sch2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       BOD_sch2009: regress BOD_sch2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+        WS_sch2009: regress WS_sch2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 C6P_sch2009 i.obese2012
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+       C6P_sch2009: regress C6P_sch2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013
+                     BOD_sch2013 WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 i.obese2009 , showcommand noisily
+         obese2012: logit obese2012 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2013 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+         obese2013: logit obese2013 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2011 i.obese2010 i.obese2009 , augment showcommand noisily
+         obese2011: logit obese2011 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2010 i.obese2009 , augment showcommand noisily
+         obese2010: logit obese2010 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2009 , augment showcommand noisily
+         obese2009: logit obese2009 i.ethnic i.poor i.sped_ever i.female i.native age2013 age2011 age2012 age2010 age2009 FFOR_sch2012 BOD_sch2012 WS_sch2012 C6P_sch2012 FFOR_sch2013 BOD_sch2013
+                     WS_sch2013 C6P_sch2013 FFOR_sch2011 BOD_sch2011 WS_sch2011 C6P_sch2011 FFOR_sch2010 BOD_sch2010 WS_sch2010 C6P_sch2010 FFOR_sch2009 BOD_sch2009 WS_sch2009 C6P_sch2009
+                     i.obese2012 i.obese2013 i.obese2011 i.obese2010 , augment showcommand noisily
+
+*/
