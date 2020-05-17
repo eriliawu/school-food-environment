@@ -5,6 +5,7 @@ set showbaselevels on
 *ssc install dataex
 *net install parallel,  from(https://raw.github.com/gvegayon/parallel/stable/) replace
 *mata mata mlib index
+*ssc install misum
 
 cd "C:\Users\wue04\OneDrive - NYU Langone Health\school-food-env\school-food-environment"
 use data/food-environment-reconstructed-mi2.dta, clear
@@ -255,33 +256,6 @@ br bds FFORname_sch BODname_sch FFOR_sch if level==3 & district>=1 & district<=3
 }
 .
 
-*** regressions
-global demo b5.ethnic female poor native sped eng_home age i.grade i.year
-
-{
-eststo clear
-quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) //main model
-quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
-quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
-quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
-quietly eststo: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
-	if level==3 & !missing(x_sch) & !missing(obese) ///
-	& dist_sch>=2640 & district>=1 & district<=32 ///
-	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
-	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & nearestDist_sch<=2640 ///
-	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
-quietly eststo: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 $demo ///
-	if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model
-esttab using raw-tables\tables_rr_sensitivity.rtf, replace nogaps ///
-	title("sensitivity-check-new-sample") b(3) se(3) 
-}
-.
-
 ********************************************************************************
 ******************************** multiple imputation ***************************
 ********************************************************************************
@@ -301,15 +275,6 @@ gen no_obese = (min_obese==.)
 drop min_obese
 codebook no_obese if no_obese==1 & level==3 & district<=32 & district>=1 //122,786
 unique(newid) if no_obese==1 & level==3 & district<=32 & district>=1 //75,418
-
-sum nycha
-bys newid: egen min_nycha = min(nycha)
-gen no_nycha = (min_nycha==.)
-drop min_nycha
-codebook no_nycha if no_nycha==1 & level==3 & district<=32 & district>=1 //93,303
-unique(newid) if no_nycha==1 & level==3 & district<=32 & district>=1 //49,596
-
-unique(newid) if no_obese==1 & no_nycha==1 & level==3 & district<=32 & district>=1 //12,322, 16,038
 }
 .
 
@@ -386,53 +351,72 @@ bys newid _mi_m: gen nearestOutlet_sch1 = nearestOutlet_sch[_n-1]
 mi register passive nearestDistk_sch1 nearestOutlet_sch1
 
 * create nearest group as london model
-mi register passive nearestGroup_sch
-mi passive: replace nearestGroup_sch = 1 if nearestOutlet_sch==1 & nearestDist_sch<=1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 2 if nearestOutlet_sch==2 & nearestDist_sch<=1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 3 if nearestOutlet_sch==3 & nearestDist_sch<=1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 4 if nearestOutlet_sch==4 & nearestDist_sch<=1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 5 if nearestOutlet_sch==1 & nearestDist_sch<=2640 & nearestDist_sch>1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 6 if nearestOutlet_sch==2 & nearestDist_sch<=2640 & nearestDist_sch>1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 7 if nearestOutlet_sch==3 & nearestDist_sch<=2640 & nearestDist_sch>1320 & _mi_m!=0
-mi passive: replace nearestGroup_sch = 8 if nearestOutlet_sch==4 & nearestDist_sch<=2640 & nearestDist_sch>1320 & _mi_m!=0
+mi register passive nearestGroup_sch2
+mi passive: replace nearestGroup_sch2 = 1 if nearestOutlet_sch==1 & nearestDist_sch<=1320
+mi passive: replace nearestGroup_sch2 = 2 if nearestOutlet_sch==2 & nearestDist_sch<=1320 
+mi passive: replace nearestGroup_sch2 = 3 if nearestOutlet_sch==3 & nearestDist_sch<=1320 
+mi passive: replace nearestGroup_sch2 = 4 if nearestOutlet_sch==4 & nearestDist_sch<=1320 
+mi passive: replace nearestGroup_sch2 = 5 if nearestOutlet_sch==1 & nearestDist_sch<=2640 & nearestDist_sch>1320
+mi passive: replace nearestGroup_sch2 = 6 if nearestOutlet_sch==2 & nearestDist_sch<=2640 & nearestDist_sch>1320 
+mi passive: replace nearestGroup_sch2 = 7 if nearestOutlet_sch==3 & nearestDist_sch<=2640 & nearestDist_sch>1320 
+mi passive: replace nearestGroup_sch2 = 8 if nearestOutlet_sch==4 & nearestDist_sch<=2640 & nearestDist_sch>1320 
 
 compress
-save data\food-environment-reconstructed-mi2.dta, replace
+*save data\food-environment-reconstructed-mi2.dta, replace
 
-{ // sensitivity checks
+*** regressions
+global demo b5.ethnic female poor native sped eng_home age i.grade i.year
+
+* table 3, london model
+{
+bys _mi_m: tab nearestGroup_sch if $sample
+tab nearestGroup_sch nearestOutlet_sch if $sample & _mi_m==0
+tab nearestGroup_sch nearestOutlet_sch if $sample & _mi_m==1 //sanity check
+
 eststo clear
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample, robust absorb(boroct2010) //main model
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample, robust absorb(boroct2010) cluster(newid) //cluster at newid, auto-corr
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample & poor==1, robust absorb(boroct2010) //limit sample to poor students
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if level==3 & !missing(x_sch) & !missing(obese) ///
-	& dist_sch>=2640 & district>=1 & district<=32 ///
-	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
-	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & nearestDist_sch<=2640 ///
-	& !missing(boroct2010), robust absorb(boroct2010) // allow multiple nearest outlets
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 ///
-	$demo if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) //main model, t-1
-esttab using raw-tables\tables_rr_sensitivity.rtf, append nogaps ///
-	title("sensitivity-check-mi") b(3) se(3) 
+eststo: mi estimate, post: areg obese b2.nearestGroup_sch2 $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid)
+eststo: mimrgns i.nearestGroup_sch2, predict(xb) post
+esttab using raw-tables\tables_rr2.rtf, append nogaps title("table3-london-update") b(3) se(3)
+esttab using raw-tables\tables_rr_CI2.csv, append nogaps title("table3-london-CI-update") ci(3) b(3)
+
+eststo: mi estimate, post: areg obese b2.nearestGroup_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid)
+
 }
 .
+* supp table 2, contrast
+* compare point estimates on diff points along the lines
+* compare diff points on the same line, and same dist on diff lines
+{
+eststo clear
+eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid)
+eststo: mimrgns i.nearestOutlet_sch, predict(xb) at(nearestDistk_sch=(0(0.264)2.64)) pwcompare post // copy the table
+esttab using raw-tables\tables_rr2.rtf, append b(3) se(3) nogaps title("supp2-contrast")
+esttab using raw-tables\tables_rr_CI2.csv, append b(3) ci(3) nogaps title("supp2-contrast")
+}
+. 
 
-*table 3, coefficients and predicted likelihood
+*table 4, coefficients and predicted likelihood
 *supp tables, by borough, gender, race/ethnicity, more than 1 outlet
 *all cluster at student level
 mi xtset, clear
 {
 eststo clear
-eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##female ///
-	$demo if $sample, robust absorb(boroct2010) cluster(newid) //main model, cluster newid
-quietly eststo: mimrgns i.nearestOutlet_sch, predict(xb) post //table 3, col 3 predicted likelihood
-esttab using raw-tables\tables_rr.rtf, replace nogaps title("table3 main model") b(3) se(3) 
+eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) cluster(newid) 
+eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
+esttab using raw-tables\tables_rr2.rtf, append nogaps title("table4 main model") b(3) se(3) 
+esttab using raw-tables\tables_rr_CI2.csv, append b(3) ci(3) nogaps title("table4 main model")
+
+* figure 1, export data to .csv
+eststo clear
+eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+	$demo if $sample, robust absorb(boroct2010) cluster(newid) 
+eststo: mimrgns i.nearestOutlet_sch, at(nearestDistk_sch=(0(0.264)2.64)) post
+esttab using raw-tables\fig1.csv, append b(10) ci(10) nogaps title("fig1")
+esttab using raw-tables\tables_rr2.rtf, append nogaps title("table3 main model") b(3) se(3) 
 
 * test joint significance 
 mi estimate: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
@@ -442,40 +426,29 @@ mi test c.nearestDistk_sch#1.nearestOutlet_sch ///
 } //joint significance: F=0.9491
 .
 
-* table 4, london model
-{
-eststo clear
-quietly eststo: mi estimate, post: areg obese b2.nearestGroup $demo ///
-	if $sample, robust absorb(boroct2010) cluster(newid)
-quietly eststo: mimrgns i.nearestGroup_sch, predict(xb) post
-esttab using raw-tables\tables_rr.rtf, append nogaps title("table4-london") b(3) se(3)
-esttab using raw-tables\tables_rr_CI.csv, replace nogaps title("table4-london-CI") ci(10) b(10)
-}
-.
-
 *** supp analysis
-* stratify by gender
+* interaction by gender
 {
 eststo clear
-eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##female ///
+quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##female ///
 	$demo if $sample, robust absorb(boroct2010) cluster(newid)
-eststo: mimrgns i.nearestOutlet_sch, over(female) predict(xb) post
-esttab using raw-tables\tables_rr.rtf, append b(3) se(3) nogaps title("stratify by gender")
-esttab using raw-tables\tables_rr_CI.csv, append b(3) ci(3) nogaps title("stratify by gender, CI")
+quietly eststo: mimrgns i.nearestOutlet_sch, over(female) predict(xb) post
+esttab using raw-tables\tables_rr2.rtf, append b(3) se(3) nogaps title("stratify by gender")
+esttab using raw-tables\tables_rr_CI2.csv, append b(3) ci(3) nogaps title("stratify by gender, CI")
 }
 .
-* stratify by race/ethnicity
+* interaction by race/ethnicity
 {
 eststo clear
 quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##b5.ethnic ///
 	$demo if $sample, robust absorb(boroct2010) cluster(newid)
-eststo: mimrgns i.nearestOutlet_sch, over(i.ethnic) predict(xb) post
+quietly eststo: mimrgns i.nearestOutlet_sch, over(i.ethnic) predict(xb) post
 esttab using raw-tables\tables_rr.rtf, append b(3) se(3) nogaps title("stratify by race")
 esttab using raw-tables\tables_rr_CI.csv, append b(3) ci(3) nogaps title("stratify by race, CI")
 }
 .
 
-* stratify by boro
+* interaction by boro
 {
 eststo clear
 quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##b1.boro_sch $demo ///
@@ -486,42 +459,96 @@ esttab using raw-tables\tables_rr_CI.csv, append b(3) ci(3) nogaps title("strati
 }
 .
 
-* following table 3
-* compare point estimates on diff points along the lines
-* compare diff points on the same line, and same dist on diff lines
-{
-*set matsize 1000
-quietly: mi estimate: areg obese c.nearestDist_sch##b2.nearestOutlet_sch $demo ///
-	if $sample, robust absorb(boroct2010) cluster(newid)
-eststo: mimrgns emargins i.nearestOutlet_sch, at(nearestDist_sch=(0(264)2640)) pwcompare post //copy the table
-esttab using raw-tables\tables_rr.rtf, append b(3) se(3) nogaps title("table3-95CI-estimates")
-esttab using raw-tables\tables_rr_CI.csv, append b(3) ci(3) nogaps title("table3-95CI-estimates")
-}
-. 
-
 { // sensitivity checks, per reviewer requests
 eststo clear
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample, robust absorb(boroct2010) cluster(bds) //cluster at bds level
-quietly eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
-	$demo if $sample & poor==1, robust absorb(boroct2010) cluster(newid) //limit sample to poor students
-quietly eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
+eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch##poor ///
+	$demo if $sample, robust absorb(boroct2010) cluster(newid) //limit sample to poor students
+eststo: mimrgns i.nearestOutlet_sch, over(poor) predict(xb) post
+eststo: mi estimate, post: areg obese c.nearestDistk_sch##b2.nearestOutlet_sch ///
 	$demo if level==3 & !missing(x_sch) & !missing(obese) ///
 	& dist_sch>=2640 & district>=1 & district<=32 ///
 	& !missing(grade) & !missing(ethnic) & !missing(sped) ///
 	& !missing(native) & !missing(female) & !missing(eng_home) & !missing(age) ///
-	& !missing(poor) & nearestDist_sch<=2640 ///
-	& !missing(boroct2010), robust absorb(boroct2010) cluster(newid) // allow multiple nearest outlets
-quietly eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
-quietly eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 ///
+	& !missing(poor) & !missing(boroct2010), ///
+	robust absorb(boroct2010) cluster(newid) // allow multiple nearest outlets
+eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
+eststo: mi estimate, post: areg obese c.nearestDistk_sch1##b2.nearestOutlet_sch1 ///
 	$demo if $sample & nearestOutlet_sch1<=4, robust absorb(boroct2010) cluster(newid) //main model, t-1
-quietly eststo: mimrgns i.nearestOutlet_sch, predict(xb) post
-esttab using raw-tables\tables_rr.rtf, append nogaps ///
+eststo: mimrgns i.nearestOutlet_sch1, predict(xb) post
+esttab using raw-tables\tables_rr2.rtf, append nogaps ///
 	title("sensitivity-check-per-reviewers-requests") b(3) se(3) 
+esttab using raw-tables\tables_rr2.csv, append nogaps ///
+	title("sensitivity-check-per-reviewers-requests") b(3) ci(3) 
+} 
+.
+
+* figure 1
+{
+quietly: mi estimate: areg obese c.nearestDist_sch##b2.nearestOutlet_sch $demo ///
+	if $sample, robust absorb(boroct2010) cluster(newid)
+quietly: mimrgns i.nearestOutlet_sch, predict(xb) at(nearestDist_sch=(0(264)2640)) post
+marginsplot, legend(label(1 "Fast food") label(2 "Corner store") ///
+	label(3 "Wait service") label(4 "Supermarket") position(7) size(vsmall)) ///
+	title("") ///
+	xtitle("Distance to nearest food outlet (ft.)", size(vsmall)) ///
+	ytitle("Likelihood of obesity", size(vsmall)) ///
+	xlabel(0(264)2640, labsize(vsmall)) ///
+	ylabel(`=0.06' "0.06" `=0.08' "0.08" `=0.1' "0.1" `=0.12' "0.12" 
+	`=0.14' "0.14" `=0.16' "0.16"  `=0.18' "0.18" `=0.2' "0.2", ///
+	labsize(vsmall) glwidth(vthin) glcolor(black%20)) ///
+	graphregion(color(white)) bgcolor(white) ///
+	plot1opts(msize(tiny)) plot2opts(msize(tiny)) ///
+	plot3opts(lpattern(shortdash) msize(tiny) lcolor(%60)) ///
+	plot4opts(lpattern(shortdash) msize(tiny) lcolor(%60))
+graph save fig1-likelihood.gph, replace
+
+* figure 1, export data to .csv
+eststo clear
+quietly: areg obese c.nearestAnyall_sch##b1.nearestOutlet_sch $demo2 ///
+	$house if $sample, robust absorb(boroct2010)
+quietly eststo: margins i.nearestOutlet_sch, at(nearestAnyall_sch=(0(264)2640)) post
+esttab using data\fig1.csv, replace b(10) ci(10) nogaps title("fig1")
 }
 .
 
+*** demographics
+mi convert flong
+* table 1 demographics
+tab _mi_m if $sample & year==2013
+misum female age poor sped native obese if $sample & year==2013
+by nearestGroup_sch2: misum if $sample & year==2013
+
+tab nearestOutlet_sch if $sample & year==2013 & _mi_m!=0
+foreach var in female ethnic poor sped native obese {
+	tab nearestOutlet_sch `var' if $sample & year==2013 & _mi_m!=0, row
 }
 .
+sum age if $sample & year==2013 & _mi_m!=0
+bys nearestOutlet_sch: sum age if $sample & year==2013 & _mi_m!=0
+
+* table 2 distance measurements
+sum nearestDist_sch if $sample & year==2013 & _mi_m!=0 //1st row
+tab nearestGroup_sch if $sample & year==2013 & _mi_m!=0 //col2 (%)
+eststo clear
+estpost tabstat nearestDist_sch if $sample & year==2013 & _mi_m!=0, ///
+	by(nearestOutlet) stats(count mean sd)
+esttab using raw-tables\tables_rr2.rtf, append title("table2-by-type") ///
+	cells("count(fmt(%12.0f)) mean(fmt(%12.0f)) sd(fmt(%12.0f))") 
+estpost tabstat nearestDist_sch if $sample & nearestDist_sch<=1320 & year==2013 & _mi_m!=0, ///
+	by(nearestOutlet) stats(count mean sd)
+esttab using raw-tables\tables_rr2.rtf, append title("table2-0-2.05") ///
+	cells("count(fmt(%12.0f)) mean(fmt(%12.0f)) sd(fmt(%12.0f))") 
+estpost tabstat nearestDist_sch if $sample & nearestDist_sch>1320 & ///
+	nearestDist_sch<=2640 & year==2013 & _mi_m!=0, by(nearestOutlet) stats(count mean sd)
+esttab using raw-tables\tables_rr2.rtf, append title("table2-0.25-0.5") ///
+	cells("count(fmt(%12.0f)) mean(fmt(%12.0f)) sd(fmt(%12.0f))") 
+
+
+
+
+
+
+
+}
+.
+
